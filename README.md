@@ -1,7 +1,8 @@
 # Pinit — Pin it and never worry
 
-Ultra-affordable local BLE item tracker for Central Asia. This repo currently covers the
-Week 1 MVP milestone: a hub that detects when tagged items are home or gone, and a backend
+Ultra-affordable local BLE item tracker for Central Asia, with AI that learns your personal
+loss patterns and stops you from losing things before it happens. This repo currently covers
+the Week 1 MVP milestone: a hub that detects when tagged items are home or gone, and a backend
 that logs that history.
 
 ## Layout
