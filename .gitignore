@@ -1,0 +1,17 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/instance/
+*.pyc
+
+# Firmware secrets
+firmware/hub/config.h
+
+# Arduino build artifacts
+*.hex
+*.elf
+*.bin
+build/
+
+# macOS
+.DS_Store
