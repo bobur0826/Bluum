@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedPass — Appointment Notes</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Consultation notes</h1>
+    <p class="subtitle">Paste or type the doctor's raw notes. MedPass will turn this into a plain-language explanation for the patient in Uzbek and Russian.</p>
+
+    {% if error %}
+      <p style="color:#d92d20; font-size:14px;">Couldn't generate the summary: {{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/patients/{{ patient.token }}/summary">
+      <label class="required">Doctor's notes</label>
+      <textarea name="doctor_notes" rows="8" required placeholder="e.g. Patient presents with acute bronchitis, prescribed amoxicillin 500mg 3x daily for 7 days, advised rest and fluids, follow up in 1 week if symptoms persist">{{ notes or "" }}</textarea>
+
+      <button type="submit">Generate plain-language summary</button>
+    </form>
+  </div>
+</body>
+</html>

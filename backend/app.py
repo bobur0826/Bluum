@@ -3,7 +3,8 @@ import io
 import qrcode
 from flask import Flask, abort, redirect, render_template, request, send_file, url_for
 
-from models import Patient, db
+from ai_summary import SummaryGenerationError, generate_summary
+from models import AppointmentSummary, Patient, db
 
 
 def create_app():
@@ -59,6 +60,49 @@ def create_app():
     def reception_view(token):
         patient = Patient.query.filter_by(token=token).first_or_404()
         return render_template("reception_view.html", patient=patient)
+
+    @app.get("/patients/<token>/summary/new")
+    def new_summary_form(token):
+        patient = Patient.query.filter_by(token=token).first_or_404()
+        return render_template("summary_form.html", patient=patient)
+
+    @app.post("/patients/<token>/summary")
+    def create_summary(token):
+        patient = Patient.query.filter_by(token=token).first_or_404()
+        notes = request.form.get("doctor_notes", "").strip()
+        if not notes:
+            abort(400, "doctor_notes is required")
+
+        try:
+            generated = generate_summary(
+                notes=notes,
+                allergies=patient.allergies,
+                current_medications=patient.current_medications,
+                chronic_conditions=patient.chronic_conditions,
+            )
+        except SummaryGenerationError as e:
+            return render_template("summary_form.html", patient=patient, error=str(e), notes=notes), 502
+
+        summary = AppointmentSummary(patient_token=patient.token, doctor_notes=notes, **generated)
+        db.session.add(summary)
+        db.session.commit()
+        return redirect(url_for("view_summary", token=patient.token, summary_id=summary.id))
+
+    @app.get("/patients/<token>/summary/<int:summary_id>")
+    def view_summary(token, summary_id):
+        patient = Patient.query.filter_by(token=token).first_or_404()
+        summary = AppointmentSummary.query.filter_by(id=summary_id, patient_token=token).first_or_404()
+        return render_template("summary_result.html", patient=patient, summary=summary)
+
+    @app.get("/patients/<token>/history")
+    def patient_history(token):
+        patient = Patient.query.filter_by(token=token).first_or_404()
+        summaries = (
+            AppointmentSummary.query.filter_by(patient_token=token)
+            .order_by(AppointmentSummary.created_at.desc())
+            .all()
+        )
+        return render_template("history.html", patient=patient, summaries=summaries)
 
     return app
 

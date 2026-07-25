@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedPass — Appointment History</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Appointment history</h1>
+
+    {% if not summaries %}
+      <p class="subtitle">No appointments recorded yet.</p>
+    {% endif %}
+
+    {% for s in summaries %}
+      <a class="field-row" style="text-decoration:none; color:inherit; display:flex;" href="/patients/{{ patient.token }}/summary/{{ s.id }}">
+        <span class="field-label">{{ s.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <span class="field-value">{{ s.diagnosis_uz[:40] }}{% if s.diagnosis_uz|length > 40 %}…{% endif %}</span>
+      </a>
+    {% endfor %}
+
+    <a class="button" href="/patients/{{ patient.token }}/summary/new">Add appointment notes</a>
+  </div>
+</body>
+</html>

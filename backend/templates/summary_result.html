@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedPass — Appointment Summary</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .lang-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
+    .lang-toggle button {
+      flex: 1; margin: 0; padding: 10px; border-radius: 10px;
+      border: 1px solid #d0d5dd; background: #fff; color: #344054;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .lang-toggle button.active { background: #1450c9; color: #fff; border-color: #1450c9; }
+    .lang-panel { display: none; }
+    .lang-panel.active { display: block; }
+    .summary-block { margin-bottom: 18px; }
+    .summary-block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #667085; margin: 0 0 6px; }
+    .summary-block p { margin: 0; font-size: 15px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">{{ patient.full_name }} — {{ summary.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+    <h1>Your appointment, explained</h1>
+
+    <div class="lang-toggle">
+      <button type="button" class="active" onclick="showLang('uz', this)">O'zbekcha</button>
+      <button type="button" onclick="showLang('ru', this)">Русский</button>
+    </div>
+
+    <div id="panel-uz" class="lang-panel active">
+      <div class="summary-block"><h3>Diagnoz nima degani</h3><p>{{ summary.diagnosis_uz }}</p></div>
+      <div class="summary-block"><h3>Dori-darmonlar</h3><p>{{ summary.medications_uz }}</p></div>
+      <div class="summary-block"><h3>Keyingi qadamlar</h3><p>{{ summary.next_steps_uz }}</p></div>
+      <div class="summary-block"><h3>Qachon qaytish kerak</h3><p>{{ summary.follow_up_uz }}</p></div>
+    </div>
+
+    <div id="panel-ru" class="lang-panel">
+      <div class="summary-block"><h3>Что значит диагноз</h3><p>{{ summary.diagnosis_ru }}</p></div>
+      <div class="summary-block"><h3>Лекарства</h3><p>{{ summary.medications_ru }}</p></div>
+      <div class="summary-block"><h3>Дальнейшие шаги</h3><p>{{ summary.next_steps_ru }}</p></div>
+      <div class="summary-block"><h3>Когда вернуться</h3><p>{{ summary.follow_up_ru }}</p></div>
+    </div>
+
+    <a class="button" href="/patients/{{ patient.token }}/history" style="background:#fff;color:#1450c9;border:1px solid #1450c9;">View appointment history</a>
+  </div>
+
+  <script>
+    function showLang(lang, btn) {
+      document.querySelectorAll('.lang-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.lang-toggle button').forEach(b => b.classList.remove('active'));
+      document.getElementById('panel-' + lang).classList.add('active');
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

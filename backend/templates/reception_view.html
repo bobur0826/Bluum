@@ -23,6 +23,9 @@
     <div class="section-title">Emergency contact</div>
     <div class="field-row"><span class="field-label">Name</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
     <div class="field-row"><span class="field-label">Phone</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
+
+    <a class="button" href="/patients/{{ patient.token }}/summary/new">Add appointment notes</a>
+    <a class="button" href="/patients/{{ patient.token }}/history" style="background:#fff;color:#1450c9;border:1px solid #1450c9;">View appointment history</a>
   </div>
 </body>
 </html>

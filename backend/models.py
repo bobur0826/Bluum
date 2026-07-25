@@ -29,3 +29,24 @@ class Patient(db.Model):
     emergency_contact_phone = db.Column(db.String(30), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class AppointmentSummary(db.Model):
+    __tablename__ = "appointment_summaries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    doctor_notes = db.Column(db.Text, nullable=False)
+
+    # Plain-language explanation, generated per language.
+    diagnosis_uz = db.Column(db.Text, nullable=True)
+    medications_uz = db.Column(db.Text, nullable=True)
+    next_steps_uz = db.Column(db.Text, nullable=True)
+    follow_up_uz = db.Column(db.Text, nullable=True)
+
+    diagnosis_ru = db.Column(db.Text, nullable=True)
+    medications_ru = db.Column(db.Text, nullable=True)
+    next_steps_ru = db.Column(db.Text, nullable=True)
+    follow_up_ru = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
