@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedPass — Reception</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card">
+    <span class="badge">Scanned in &lt; 1 second</span>
+    <h1>{{ patient.full_name }}</h1>
+    <p class="subtitle">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+
+    <div class="section-title">Basic info</div>
+    <div class="field-row"><span class="field-label">Blood type</span><span class="field-value">{{ patient.blood_type or "—" }}</span></div>
+
+    <div class="section-title">Medical history</div>
+    <div class="field-row"><span class="field-label">Allergies</span><span class="field-value">{{ patient.allergies or "None reported" }}</span></div>
+    <div class="field-row"><span class="field-label">Chronic conditions</span><span class="field-value">{{ patient.chronic_conditions or "None reported" }}</span></div>
+    <div class="field-row"><span class="field-label">Current medications</span><span class="field-value">{{ patient.current_medications or "None reported" }}</span></div>
+
+    <div class="section-title">Emergency contact</div>
+    <div class="field-row"><span class="field-label">Name</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
+    <div class="field-row"><span class="field-label">Phone</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
+  </div>
+</body>
+</html>

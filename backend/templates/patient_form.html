@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedPass — Patient Profile</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>MedPass</h1>
+    <p class="subtitle">Fill this once. Every hospital visit after that takes seconds.</p>
+
+    <form method="post" action="/patients">
+      <fieldset>
+        <legend>Basic info</legend>
+        <label class="required">Full name</label>
+        <input type="text" name="full_name" required>
+
+        <label class="required">Date of birth</label>
+        <input type="date" name="dob" required>
+
+        <label class="required">Phone number</label>
+        <input type="tel" name="phone" required>
+
+        <label>Blood type</label>
+        <input type="text" name="blood_type" placeholder="e.g. O+">
+      </fieldset>
+
+      <fieldset>
+        <legend>Medical history</legend>
+        <label>Allergies</label>
+        <textarea name="allergies" placeholder="e.g. Penicillin, peanuts"></textarea>
+
+        <label>Chronic conditions</label>
+        <textarea name="chronic_conditions" placeholder="e.g. Asthma, diabetes"></textarea>
+
+        <label>Current medications</label>
+        <textarea name="current_medications" placeholder="e.g. Metformin 500mg daily"></textarea>
+      </fieldset>
+
+      <fieldset>
+        <legend>Emergency contact</legend>
+        <label>Name</label>
+        <input type="text" name="emergency_contact_name">
+
+        <label>Phone</label>
+        <input type="tel" name="emergency_contact_phone">
+      </fieldset>
+
+      <button type="submit">Generate my QR code</button>
+    </form>
+  </div>
+</body>
+</html>

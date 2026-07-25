@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedPass — Your QR Code</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="card qr-wrap">
+    <span class="badge">Profile saved</span>
+    <h1>You're all set, {{ patient.full_name.split(" ")[0] }}</h1>
+    <p class="subtitle">Show this QR code at reception. All your paperwork will be filled in automatically.</p>
+    <img src="/patients/{{ patient.token }}/qr.png" alt="Your MedPass QR code">
+    <p class="subtitle">Save a screenshot — you won't need to fill this in again.</p>
+  </div>
+</body>
+</html>

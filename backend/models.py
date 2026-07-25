@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
@@ -5,22 +6,26 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
-class Tag(db.Model):
-    __tablename__ = "tags"
+def generate_token():
+    return secrets.token_urlsafe(8)
+
+
+class Patient(db.Model):
+    __tablename__ = "patients"
 
     id = db.Column(db.Integer, primary_key=True)
-    tag_id = db.Column(db.String(32), unique=True, nullable=False)
-    name = db.Column(db.String(64), nullable=False)
-    item_type = db.Column(db.String(32), nullable=False, default="keychain")
+    token = db.Column(db.String(16), unique=True, nullable=False, default=generate_token)
+
+    full_name = db.Column(db.String(120), nullable=False)
+    dob = db.Column(db.String(20), nullable=False)
+    phone = db.Column(db.String(30), nullable=False)
+    blood_type = db.Column(db.String(10), nullable=True)
+
+    allergies = db.Column(db.Text, nullable=True)
+    chronic_conditions = db.Column(db.Text, nullable=True)
+    current_medications = db.Column(db.Text, nullable=True)
+
+    emergency_contact_name = db.Column(db.String(120), nullable=True)
+    emergency_contact_phone = db.Column(db.String(30), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class PresenceEvent(db.Model):
-    __tablename__ = "presence_events"
-
-    id = db.Column(db.Integer, primary_key=True)
-    tag_id = db.Column(db.String(32), db.ForeignKey("tags.tag_id"), nullable=False, index=True)
-    present = db.Column(db.Boolean, nullable=False)
-    rssi = db.Column(db.Integer, nullable=True)
-    battery_pct = db.Column(db.Integer, nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
