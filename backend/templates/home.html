@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}MedPass{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <h1>MedPass</h1>
+    <p class="subtitle">The patient intelligence platform for Central Asia. Fill your medical profile once — every hospital visit after that takes seconds.</p>
+  </div>
+
+  <a class="choice-card" href="/patient/new">
+    <h2>I'm a patient</h2>
+    <p>Fill your medical profile and get your QR code for hospital check-in.</p>
+  </a>
+
+  <a class="choice-card" href="/staff">
+    <h2>I'm hospital staff</h2>
+    <p>Look up a patient's profile and add appointment notes.</p>
+  </a>
+{% endblock %}

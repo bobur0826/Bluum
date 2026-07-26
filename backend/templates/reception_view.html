@@ -1,12 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MedPass — Reception</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}MedPass — Reception{% endblock %}
+{% block content %}
   <div class="card">
     <span class="badge">Scanned in &lt; 1 second</span>
     <h1>{{ patient.full_name }}</h1>
@@ -27,5 +21,4 @@
     <a class="button" href="/patients/{{ patient.token }}/summary/new">Add appointment notes</a>
     <a class="button" href="/patients/{{ patient.token }}/history" style="background:#fff;color:#1450c9;border:1px solid #1450c9;">View appointment history</a>
   </div>
-</body>
-</html>
+{% endblock %}

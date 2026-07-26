@@ -5,7 +5,20 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: #f4f6f8;
   color: #1a1d21;
-  padding: 24px 16px 60px;
+  padding: 0 16px 60px;
+}
+
+.nav {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 4px 12px;
+}
+
+.nav a {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1450c9;
+  text-decoration: none;
 }
 
 .card {
@@ -15,6 +28,33 @@ body {
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.choice-card {
+  display: block;
+  max-width: 480px;
+  margin: 0 auto 14px;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid transparent;
+}
+
+.choice-card:active { border-color: #1450c9; }
+
+.choice-card h2 {
+  font-size: 17px;
+  margin: 0 0 4px;
+  color: #1450c9;
+}
+
+.choice-card p {
+  font-size: 14px;
+  color: #667085;
+  margin: 0;
 }
 
 h1 {

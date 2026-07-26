@@ -17,8 +17,23 @@ def create_app():
         db.create_all()
 
     @app.get("/")
+    def home():
+        return render_template("home.html")
+
+    @app.get("/patient/new")
     def patient_form():
         return render_template("patient_form.html")
+
+    @app.get("/staff")
+    def staff_lookup():
+        return render_template("staff.html")
+
+    @app.post("/staff/lookup")
+    def staff_lookup_submit():
+        token = request.form.get("token", "").strip()
+        if not Patient.query.filter_by(token=token).first():
+            return render_template("staff.html", error="No patient found for that code"), 404
+        return redirect(url_for("reception_view", token=token))
 
     @app.post("/patients")
     def create_patient():

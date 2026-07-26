@@ -1,12 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MedPass — Appointment History</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}MedPass — Appointment History{% endblock %}
+{% block content %}
   <div class="card">
     <span class="badge">{{ patient.full_name }}</span>
     <h1>Appointment history</h1>
@@ -24,5 +18,4 @@
 
     <a class="button" href="/patients/{{ patient.token }}/summary/new">Add appointment notes</a>
   </div>
-</body>
-</html>
+{% endblock %}

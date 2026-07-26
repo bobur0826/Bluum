@@ -1,10 +1,6 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MedPass — Appointment Summary</title>
-  <link rel="stylesheet" href="/static/style.css">
+{% extends "base.html" %}
+{% block title %}MedPass — Appointment Summary{% endblock %}
+{% block extra_head %}
   <style>
     .lang-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
     .lang-toggle button {
@@ -19,8 +15,8 @@
     .summary-block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #667085; margin: 0 0 6px; }
     .summary-block p { margin: 0; font-size: 15px; line-height: 1.5; }
   </style>
-</head>
-<body>
+{% endblock %}
+{% block content %}
   <div class="card">
     <span class="badge">{{ patient.full_name }} — {{ summary.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
     <h1>Your appointment, explained</h1>
@@ -55,5 +51,4 @@
       btn.classList.add('active');
     }
   </script>
-</body>
-</html>
+{% endblock %}

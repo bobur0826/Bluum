@@ -1,14 +1,8 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MedPass — Patient Profile</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}MedPass — Patient Profile{% endblock %}
+{% block content %}
   <div class="card">
-    <h1>MedPass</h1>
+    <h1>Patient profile</h1>
     <p class="subtitle">Fill this once. Every hospital visit after that takes seconds.</p>
 
     <form method="post" action="/patients">
@@ -51,5 +45,4 @@
       <button type="submit">Generate my QR code</button>
     </form>
   </div>
-</body>
-</html>
+{% endblock %}
