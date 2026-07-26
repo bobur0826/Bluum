@@ -8,7 +8,18 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-  <div class="nav"><a href="/">MedPass</a></div>
+  <div class="nav">
+    <a class="nav-logo" href="/">MedPass</a>
+    <div class="nav-links">
+      <a href="/patient/new">Patient</a>
+      <a href="/staff">Hospital staff</a>
+    </div>
+    <div class="lang-pills">
+      <span class="active">EN</span>
+      <span>UZ</span>
+      <span>RU</span>
+    </div>
+  </div>
   {% block content %}{% endblock %}
 </body>
 </html>

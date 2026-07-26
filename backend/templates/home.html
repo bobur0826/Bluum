@@ -1,18 +1,20 @@
 {% extends "base.html" %}
 {% block title %}MedPass{% endblock %}
 {% block content %}
-  <div class="card" style="margin-bottom:16px;">
-    <h1>MedPass</h1>
-    <p class="subtitle">The patient intelligence platform for Central Asia. Fill your medical profile once — every hospital visit after that takes seconds.</p>
+  <div class="hero">
+    <h1>The <span class="accent">Patient Intelligence</span> Platform for Central Asia</h1>
+    <p class="lead">Fill your medical profile once. Every hospital visit after that is auto-filled, explained in plain language, and remembered — forever.</p>
+
+    <div class="hero-actions">
+      <a class="pill-button primary" href="/patient/new">I'm a patient</a>
+      <a class="pill-button" href="/staff">I'm hospital staff</a>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="num">45s</div><div class="label">Check-in time</div></div>
+      <div class="stat"><div class="num">2</div><div class="label">Languages supported</div></div>
+      <div class="stat"><div class="num">$0</div><div class="label">Cost to patients</div></div>
+      <div class="stat"><div class="num">24/7</div><div class="label">AI follow-up</div></div>
+    </div>
   </div>
-
-  <a class="choice-card" href="/patient/new">
-    <h2>I'm a patient</h2>
-    <p>Fill your medical profile and get your QR code for hospital check-in.</p>
-  </a>
-
-  <a class="choice-card" href="/staff">
-    <h2>I'm hospital staff</h2>
-    <p>Look up a patient's profile and add appointment notes.</p>
-  </a>
 {% endblock %}

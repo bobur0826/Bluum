@@ -5,15 +5,15 @@
     .lang-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
     .lang-toggle button {
       flex: 1; margin: 0; padding: 10px; border-radius: 10px;
-      border: 1px solid #d0d5dd; background: #fff; color: #344054;
+      border: 1px solid var(--border-strong); background: var(--bg-elevated-2); color: var(--text-secondary);
       font-size: 14px; font-weight: 600; cursor: pointer;
     }
-    .lang-toggle button.active { background: #1450c9; color: #fff; border-color: #1450c9; }
+    .lang-toggle button.active { background: var(--gradient); color: #fff; border-color: transparent; }
     .lang-panel { display: none; }
     .lang-panel.active { display: block; }
     .summary-block { margin-bottom: 18px; }
-    .summary-block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #667085; margin: 0 0 6px; }
-    .summary-block p { margin: 0; font-size: 15px; line-height: 1.5; }
+    .summary-block h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 0 0 6px; }
+    .summary-block p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--text-primary); }
   </style>
 {% endblock %}
 {% block content %}
@@ -40,7 +40,7 @@
       <div class="summary-block"><h3>Когда вернуться</h3><p>{{ summary.follow_up_ru }}</p></div>
     </div>
 
-    <a class="button" href="/patients/{{ patient.token }}/history" style="background:#fff;color:#1450c9;border:1px solid #1450c9;">View appointment history</a>
+    <a class="button button-secondary" href="/patients/{{ patient.token }}/history">View appointment history</a>
   </div>
 
   <script>
