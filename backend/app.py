@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 
 import qrcode
 from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, abort, redirect, render_template, request, send_file, url_for
+from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from ai_summary import (
@@ -61,8 +61,12 @@ def create_app():
     @app.post("/patients")
     def create_patient():
         form = request.form
-        if not form.get("full_name") or not form.get("dob") or not form.get("phone"):
-            abort(400, "full_name, dob, and phone are required")
+        if not form.get("full_name") or not form.get("dob") or not form.get("phone") or not form.get("password"):
+            abort(400, "full_name, dob, phone, and password are required")
+        if Patient.query.filter_by(phone=form["phone"]).first():
+            return render_template(
+                "patient_form.html", error="An account with that phone number already exists"
+            ), 409
 
         patient = Patient(
             full_name=form["full_name"],
@@ -75,9 +79,29 @@ def create_app():
             emergency_contact_name=form.get("emergency_contact_name"),
             emergency_contact_phone=form.get("emergency_contact_phone"),
         )
+        patient.set_password(form["password"])
         db.session.add(patient)
         db.session.commit()
+        session["patient_token"] = patient.token
         return redirect(url_for("show_qr", token=patient.token))
+
+    @app.get("/patient/login")
+    def patient_login_form():
+        return render_template("patient_login.html")
+
+    @app.post("/patient/login")
+    def patient_login():
+        form = request.form
+        patient = Patient.query.filter_by(phone=form.get("phone")).first()
+        if not patient or not patient.check_password(form.get("password", "")):
+            return render_template("patient_login.html", error="Invalid phone number or password"), 401
+        session["patient_token"] = patient.token
+        return redirect(url_for("patient_dashboard", token=patient.token))
+
+    @app.get("/patient/logout")
+    def patient_logout():
+        session.pop("patient_token", None)
+        return redirect(url_for("home"))
 
     @app.get("/patients/<token>/qr")
     def show_qr(token):

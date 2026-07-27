@@ -19,7 +19,8 @@ class Patient(db.Model):
 
     full_name = db.Column(db.String(120), nullable=False)
     dob = db.Column(db.String(20), nullable=False)
-    phone = db.Column(db.String(30), nullable=False)
+    phone = db.Column(db.String(30), nullable=False, unique=True)
+    password_hash = db.Column(db.String(255), nullable=True)
     blood_type = db.Column(db.String(10), nullable=True)
 
     allergies = db.Column(db.Text, nullable=True)
@@ -54,6 +55,14 @@ class Patient(db.Model):
             if not getattr(self, field):
                 return field, question
         return None, None
+
+    def set_password(self, raw):
+        self.password_hash = generate_password_hash(raw)
+
+    def check_password(self, raw):
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, raw)
 
 
 class Staff(db.Model):
