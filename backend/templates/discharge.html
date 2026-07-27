@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Discharge Instructions{% endblock %}
+{% block extra_head %}
+  <style>
+    .step-list { list-style: none; padding: 0; margin: 0; }
+    .step-list li {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 15px;
+    }
+    .step-list li:last-child { border-bottom: none; }
+    .step-num {
+      flex-shrink: 0; width: 24px; height: 24px; border-radius: 999px;
+      background: var(--gradient); color: #fff; font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+  </style>
+{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }} — {{ summary.created_at.strftime("%Y-%m-%d") }}</span>
+    <h1>Your daily steps</h1>
+    <p class="subtitle">Simple checklist version of your appointment instructions.</p>
+
+    <div class="section-title">O'zbekcha</div>
+    <ul class="step-list">
+      {% for step in steps_uz %}<li><span class="step-num">{{ loop.index }}</span><span>{{ step }}</span></li>{% endfor %}
+    </ul>
+
+    <div class="section-title">Русский</div>
+    <ul class="step-list">
+      {% for step in steps_ru %}<li><span class="step-num">{{ loop.index }}</span><span>{{ step }}</span></li>{% endfor %}
+    </ul>
+
+    <a class="button button-secondary" href="/patients/{{ patient.token }}/summary/{{ summary.id }}">Back to full summary</a>
+  </div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Review Summary{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }} — pending your approval</span>
+    <h1>Review before sending to patient</h1>
+    <p class="subtitle">This is what the patient will see once approved. Edit the notes and regenerate if anything looks wrong.</p>
+
+    <div class="section-title">Diagnosis (Uzbek)</div>
+    <p>{{ summary.diagnosis_uz }}</p>
+    <div class="section-title">Medications (Uzbek)</div>
+    <p>{{ summary.medications_uz }}</p>
+    <div class="section-title">Next steps (Uzbek)</div>
+    <p>{{ summary.next_steps_uz }}</p>
+    <div class="section-title">Follow-up (Uzbek)</div>
+    <p>{{ summary.follow_up_uz }}</p>
+
+    <form method="post" action="/patients/{{ patient.token }}/summary/{{ summary.id }}/approve">
+      <button type="submit">Approve &amp; send to patient</button>
+    </form>
+    <a class="button button-secondary" href="/patients/{{ patient.token }}/summary/new">Discard &amp; rewrite notes</a>
+  </div>
+{% endblock %}

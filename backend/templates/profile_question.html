@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Complete Your Profile{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    {% if question %}
+      <h1>One quick question</h1>
+      <p class="subtitle">This helps your doctors give you better care over time. Takes a few seconds.</p>
+      <form method="post">
+        <input type="hidden" name="field" value="{{ field }}">
+        <label>{{ question }}</label>
+        <input type="text" name="value" autofocus>
+        <button type="submit">Save</button>
+      </form>
+    {% else %}
+      <h1>Your profile is complete</h1>
+      <p class="subtitle">Nothing more to add right now — thanks for filling this in.</p>
+    {% endif %}
+    <a class="button button-secondary" href="/patients/{{ patient.token }}/dashboard">Back to dashboard</a>
+  </div>
+{% endblock %}

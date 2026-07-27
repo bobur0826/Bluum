@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Hospital Dashboard{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <h1>Today at a glance</h1>
+  </div>
+
+  <div class="stat-row" style="margin-bottom:32px;">
+    <div class="stat"><div class="num">{{ checkins_today }}</div><div class="label">Check-ins today</div></div>
+    <div class="stat"><div class="num">{{ seen_today }}</div><div class="label">Seen by a doctor</div></div>
+    <div class="stat"><div class="num">{{ avg_wait if avg_wait is not none else "—" }}{% if avg_wait is not none %}m{% endif %}</div><div class="label">Average wait time</div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Bottlenecks</div>
+    <p class="subtitle" style="margin-bottom:0;">{{ bottleneck or "No bottlenecks detected today." }}</p>
+  </div>
+{% endblock %}

@@ -2,6 +2,7 @@ import secrets
 from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash, generate_password_hash
 
 db = SQLAlchemy()
 
@@ -28,7 +29,57 @@ class Patient(db.Model):
     emergency_contact_name = db.Column(db.String(120), nullable=True)
     emergency_contact_phone = db.Column(db.String(30), nullable=True)
 
+    # "simple" = everyday language, "medical" = clinical terminology kept intact.
+    language_register = db.Column(db.String(16), nullable=False, default="simple")
+
+    # Progressive profile: one of these is asked at a time, at check-in, until complete.
+    height_cm = db.Column(db.Integer, nullable=True)
+    weight_kg = db.Column(db.Integer, nullable=True)
+    smoking_status = db.Column(db.String(32), nullable=True)
+    occupation = db.Column(db.String(120), nullable=True)
+    family_history = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    PROGRESSIVE_FIELDS = [
+        ("height_cm", "What is your height (cm)?"),
+        ("weight_kg", "What is your weight (kg)?"),
+        ("smoking_status", "Do you smoke? (never / former / current)"),
+        ("occupation", "What is your occupation?"),
+        ("family_history", "Any major illnesses in your immediate family?"),
+    ]
+
+    def next_progressive_question(self):
+        for field, question in self.PROGRESSIVE_FIELDS:
+            if not getattr(self, field):
+                return field, question
+        return None, None
+
+
+class Staff(db.Model):
+    __tablename__ = "staff"
+
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    hospital_name = db.Column(db.String(160), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def set_password(self, raw):
+        self.password_hash = generate_password_hash(raw)
+
+    def check_password(self, raw):
+        return check_password_hash(self.password_hash, raw)
+
+
+class CheckIn(db.Model):
+    __tablename__ = "check_ins"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    staff_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
 
 class AppointmentSummary(db.Model):
@@ -36,6 +87,7 @@ class AppointmentSummary(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    staff_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
     doctor_notes = db.Column(db.Text, nullable=False)
 
     # Plain-language explanation, generated per language.
@@ -43,10 +95,92 @@ class AppointmentSummary(db.Model):
     medications_uz = db.Column(db.Text, nullable=True)
     next_steps_uz = db.Column(db.Text, nullable=True)
     follow_up_uz = db.Column(db.Text, nullable=True)
+    daily_steps_uz = db.Column(db.Text, nullable=True)  # JSON list of short steps
 
     diagnosis_ru = db.Column(db.Text, nullable=True)
     medications_ru = db.Column(db.Text, nullable=True)
     next_steps_ru = db.Column(db.Text, nullable=True)
     follow_up_ru = db.Column(db.Text, nullable=True)
+    daily_steps_ru = db.Column(db.Text, nullable=True)
 
+    # pending_review -> awaiting doctor approval, not visible to patient yet.
+    # approved -> patient can see it.
+    status = db.Column(db.String(20), nullable=False, default="pending_review")
+    follow_up_date = db.Column(db.Date, nullable=True)
+    follow_up_sms_sent = db.Column(db.Boolean, nullable=False, default=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class TestResult(db.Model):
+    __tablename__ = "test_results"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+
+    risk_level = db.Column(db.String(16), nullable=True)  # "urgent" or "routine"
+    explanation_uz = db.Column(db.Text, nullable=True)
+    explanation_ru = db.Column(db.Text, nullable=True)
+
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class Medication(db.Model):
+    __tablename__ = "medications"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    dosage = db.Column(db.String(120), nullable=True)
+    schedule_times = db.Column(db.String(120), nullable=True)  # comma-separated "08:00,20:00"
+    active = db.Column(db.Boolean, nullable=False, default=True)
+    last_reminder_sent = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Document(db.Model):
+    __tablename__ = "documents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    category = db.Column(db.String(32), nullable=False)  # prescription / referral / insurance / lab
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class Appointment(db.Model):
+    __tablename__ = "appointments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    department = db.Column(db.String(120), nullable=False)
+    requested_at = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="requested")  # requested / confirmed / cancelled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Prescription(db.Model):
+    __tablename__ = "prescriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    staff_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
+    drug_name = db.Column(db.String(160), nullable=False)
+    dosage = db.Column(db.String(120), nullable=False)
+    instructions = db.Column(db.Text, nullable=True)
+    duration = db.Column(db.String(80), nullable=True)
+    interaction_warning = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+
+class StaffNote(db.Model):
+    __tablename__ = "staff_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    staff_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=True)
+    note = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)

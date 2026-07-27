@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Your Dashboard{% endblock %}
+{% block content %}
+  <div class="card" style="margin-bottom:16px;">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Your health, in one place</h1>
+  </div>
+
+  <a class="choice-card" href="/patients/{{ patient.token }}/history"><h2>Appointment history</h2><p>Past visits, explained in plain language</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/results"><h2>Test results</h2><p>Upload lab results, get a plain-language explanation</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/medications"><h2>Medications</h2><p>Track what you're taking and when</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/documents"><h2>Documents</h2><p>Prescriptions, referrals, insurance, lab results</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/symptom-checker"><h2>Symptom checker</h2><p>Describe symptoms, get urgency + specialist guidance</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/appointments/prepare"><h2>Prepare for a visit</h2><p>Get questions to ask your doctor</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/appointments"><h2>Book an appointment</h2><p>Request a visit by department</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/prescriptions"><h2>Prescriptions</h2><p>Everything a doctor has prescribed you</p></a>
+  <a class="choice-card" href="/patients/{{ patient.token }}/profile/next-question"><h2>Complete your profile</h2><p>Answer one more question to help your doctors</p></a>
+{% endblock %}

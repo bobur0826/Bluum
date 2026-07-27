@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Pending Review{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Your doctor is still reviewing this</h1>
+    <p class="subtitle">This appointment summary hasn't been approved yet. Check back shortly.</p>
+    <a class="button button-secondary" href="/patients/{{ patient.token }}/history">Back to history</a>
+  </div>
+{% endblock %}

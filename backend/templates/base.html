@@ -12,7 +12,14 @@
     <a class="nav-logo" href="/">MedPass</a>
     <div class="nav-links">
       <a href="/patient/new">Patient</a>
-      <a href="/staff">Hospital staff</a>
+      {% if current_user.is_authenticated %}
+        <a href="/staff">Look up patient</a>
+        <a href="/hospital/dashboard">Dashboard</a>
+        <a href="/hospital/appointments">Appointments</a>
+        <a href="/staff/logout">Log out</a>
+      {% else %}
+        <a href="/staff/login">Hospital staff</a>
+      {% endif %}
     </div>
     <div class="lang-pills">
       <span class="active">EN</span>

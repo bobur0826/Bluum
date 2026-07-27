@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Medications{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Medications</h1>
+
+    {% if not medications %}<p class="subtitle">No medications tracked yet.</p>{% endif %}
+
+    {% for m in medications %}
+      <div class="field-row">
+        <span class="field-label">{{ m.name }}{% if m.dosage %} — {{ m.dosage }}{% endif %}{% if m.schedule_times %} · {{ m.schedule_times }}{% endif %}</span>
+        <form method="post" action="/patients/{{ patient.token }}/medications/{{ m.id }}/delete" style="margin:0;">
+          <button type="submit" style="margin:0; width:auto; padding:4px 10px; font-size:12px;">Remove</button>
+        </form>
+      </div>
+    {% endfor %}
+
+    <form method="post" action="/patients/{{ patient.token }}/medications" style="margin-top:20px;">
+      <label class="required">Medication name</label>
+      <input type="text" name="name" required placeholder="e.g. Metformin">
+      <label>Dosage</label>
+      <input type="text" name="dosage" placeholder="e.g. 500mg">
+      <label>Times per day (comma-separated, 24h)</label>
+      <input type="text" name="schedule_times" placeholder="e.g. 08:00,20:00">
+      <button type="submit">Add medication</button>
+    </form>
+  </div>
+{% endblock %}

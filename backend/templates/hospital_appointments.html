@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Appointment Requests{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Appointment requests</h1>
+
+    {% if not appointments %}<p class="subtitle">No pending requests.</p>{% endif %}
+    {% for a in appointments %}
+      <div class="field-row">
+        <span class="field-label">{{ patients[a.patient_token].full_name }} — {{ a.department }} — {{ a.requested_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <form method="post" action="/hospital/appointments/{{ a.id }}/confirm" style="margin:0;">
+          <button type="submit" style="margin:0; width:auto; padding:4px 10px; font-size:12px;">Confirm</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}MedPass — New Prescription{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Write a prescription</h1>
+    <p class="subtitle">Checked automatically against known allergies and current medications.</p>
+
+    <form method="post" action="/patients/{{ patient.token }}/prescriptions">
+      <label class="required">Drug name</label>
+      <input type="text" name="drug_name" required>
+      <label class="required">Dosage</label>
+      <input type="text" name="dosage" required placeholder="e.g. 500mg twice daily">
+      <label>Duration</label>
+      <input type="text" name="duration" placeholder="e.g. 7 days">
+      <label>Instructions</label>
+      <textarea name="instructions" rows="3"></textarea>
+      <button type="submit">Save prescription</button>
+    </form>
+  </div>
+{% endblock %}

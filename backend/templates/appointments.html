@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Appointments{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Appointments</h1>
+
+    {% if not appointments %}<p class="subtitle">No appointments booked yet.</p>{% endif %}
+    {% for a in appointments %}
+      <div class="field-row">
+        <span class="field-label">{{ a.department }} — {{ a.requested_at.strftime("%Y-%m-%d %H:%M") }}</span>
+        <span class="field-value">{{ a.status|capitalize }}</span>
+      </div>
+    {% endfor %}
+
+    <form method="post" style="margin-top:20px;">
+      <label class="required">Department</label>
+      <input type="text" name="department" required placeholder="e.g. Cardiology">
+      <label class="required">Preferred date &amp; time</label>
+      <input type="datetime-local" name="requested_at" required>
+      <button type="submit">Request appointment</button>
+    </form>
+  </div>
+{% endblock %}

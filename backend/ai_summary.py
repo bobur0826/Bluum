@@ -5,9 +5,41 @@ import anthropic
 
 MODEL = "claude-sonnet-5"
 
-PROMPT_TEMPLATE = """You are helping a patient in Uzbekistan understand what happened in their \
+REGISTER_INSTRUCTIONS = {
+    "simple": "Use everyday words a non-medical person understands. No clinical jargon.",
+    "medical": "Keep proper medical/clinical terminology intact (e.g. drug names, diagnosis names) "
+    "but still explain what each term means in a following clause.",
+}
+
+
+class SummaryGenerationError(Exception):
+    pass
+
+
+def _client():
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise SummaryGenerationError("ANTHROPIC_API_KEY is not set")
+    return anthropic.Anthropic(api_key=api_key)
+
+
+def _call(prompt: str, max_tokens: int = 1024) -> dict:
+    response = _client().messages.create(
+        model=MODEL,
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = response.content[0].text.strip()
+    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise SummaryGenerationError(f"Could not parse AI response: {e}")
+
+
+SUMMARY_PROMPT = """You are helping a patient in Uzbekistan understand what happened in their \
 doctor's appointment. Given the doctor's raw consultation notes and the patient's known medical \
-background, write a plain-language explanation a non-medical person can understand.
+background, write a plain-language explanation.
 
 Doctor's notes:
 {notes}
@@ -16,58 +48,182 @@ Patient's known allergies: {allergies}
 Patient's current medications: {current_medications}
 Patient's chronic conditions: {chronic_conditions}
 
+Language register: {register_instruction}
+
 Respond with ONLY valid JSON, no markdown fences, in exactly this shape:
 {{
-  "uz": {{"diagnosis": "...", "medications": "...", "next_steps": "...", "follow_up": "..."}},
-  "ru": {{"diagnosis": "...", "medications": "...", "next_steps": "...", "follow_up": "..."}}
+  "uz": {{"diagnosis": "...", "medications": "...", "next_steps": "...", "follow_up": "...", "daily_steps": ["...", "..."]}},
+  "ru": {{"diagnosis": "...", "medications": "...", "next_steps": "...", "follow_up": "...", "daily_steps": ["...", "..."]}}
 }}
 
 Rules for every field:
-- "diagnosis": what the diagnosis means, in simple everyday words, 2-3 sentences.
-- "medications": what to take and when, plain instructions. If the notes mention a medication \
-that conflicts with the patient's known allergies, say so clearly as a warning.
+- "diagnosis": what the diagnosis means, 2-3 sentences.
+- "medications": what to take and when. If the notes mention a medication that conflicts with the \
+patient's known allergies, say so clearly as a warning.
 - "next_steps": what the patient should actually do at home, 1-3 short sentences.
 - "follow_up": when to come back or call the hospital, one sentence.
+- "daily_steps": the same guidance as next_steps + medications, broken into a short checklist of \
+3-6 individual daily actions (e.g. "Take amoxicillin at 8am and 8pm", "Rest, avoid heavy exercise").
 - "uz" must be written in Uzbek, "ru" must be written in Russian. No English in either.
-- No clinical jargon. Warm, clear, short sentences."""
+- Warm, clear, short sentences."""
 
 
-class SummaryGenerationError(Exception):
-    pass
-
-
-def generate_summary(notes: str, allergies: str, current_medications: str, chronic_conditions: str) -> dict:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise SummaryGenerationError("ANTHROPIC_API_KEY is not set")
-
-    client = anthropic.Anthropic(api_key=api_key)
-    prompt = PROMPT_TEMPLATE.format(
+def generate_summary(
+    notes: str,
+    allergies: str,
+    current_medications: str,
+    chronic_conditions: str,
+    language_register: str = "simple",
+) -> dict:
+    prompt = SUMMARY_PROMPT.format(
         notes=notes,
         allergies=allergies or "None reported",
         current_medications=current_medications or "None reported",
         chronic_conditions=chronic_conditions or "None reported",
+        register_instruction=REGISTER_INSTRUCTIONS.get(language_register, REGISTER_INSTRUCTIONS["simple"]),
     )
-
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text.strip()
-    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-
+    data = _call(prompt)
     try:
-        data = json.loads(raw)
+        out = {}
+        for lang in ("uz", "ru"):
+            out[f"diagnosis_{lang}"] = data[lang]["diagnosis"]
+            out[f"medications_{lang}"] = data[lang]["medications"]
+            out[f"next_steps_{lang}"] = data[lang]["next_steps"]
+            out[f"follow_up_{lang}"] = data[lang]["follow_up"]
+            out[f"daily_steps_{lang}"] = json.dumps(data[lang]["daily_steps"], ensure_ascii=False)
+        return out
+    except KeyError as e:
+        raise SummaryGenerationError(f"Missing field in AI response: {e}")
+
+
+TEST_RESULT_PROMPT = """A patient in Uzbekistan uploaded a lab/test result. Here is a description \
+or transcription of the result:
+
+{result_text}
+
+Patient's known chronic conditions: {chronic_conditions}
+
+Respond with ONLY valid JSON, no markdown fences:
+{{
+  "risk_level": "urgent" or "routine",
+  "uz": "plain-language explanation of what this result means, 2-4 sentences, in Uzbek",
+  "ru": "the same explanation in Russian"
+}}
+
+"urgent" means the patient should contact the hospital soon / seek care within a day or two.
+"routine" means it can wait for a normal follow-up. No clinical jargon in the explanations."""
+
+
+def generate_test_result_explanation(result_text: str, chronic_conditions: str) -> dict:
+    prompt = TEST_RESULT_PROMPT.format(
+        result_text=result_text, chronic_conditions=chronic_conditions or "None reported"
+    )
+    data = _call(prompt)
+    try:
         return {
-            "diagnosis_uz": data["uz"]["diagnosis"],
-            "medications_uz": data["uz"]["medications"],
-            "next_steps_uz": data["uz"]["next_steps"],
-            "follow_up_uz": data["uz"]["follow_up"],
-            "diagnosis_ru": data["ru"]["diagnosis"],
-            "medications_ru": data["ru"]["medications"],
-            "next_steps_ru": data["ru"]["next_steps"],
-            "follow_up_ru": data["ru"]["follow_up"],
+            "risk_level": data["risk_level"],
+            "explanation_uz": data["uz"],
+            "explanation_ru": data["ru"],
         }
-    except (json.JSONDecodeError, KeyError) as e:
-        raise SummaryGenerationError(f"Could not parse AI response: {e}")
+    except KeyError as e:
+        raise SummaryGenerationError(f"Missing field in AI response: {e}")
+
+
+SYMPTOM_CHECK_PROMPT = """A patient in Uzbekistan describes these symptoms:
+
+{symptoms}
+
+Patient's known allergies: {allergies}
+Patient's known chronic conditions: {chronic_conditions}
+
+Respond with ONLY valid JSON, no markdown fences:
+{{
+  "urgency": "emergency" or "urgent" or "routine",
+  "specialist": "the type of doctor/specialist they should see, in English (e.g. Cardiologist)",
+  "uz": "1-2 sentence explanation of the recommendation, in Uzbek",
+  "ru": "the same explanation in Russian"
+}}
+
+"emergency" = go to the ER now. "urgent" = see a doctor within 1-2 days. "routine" = book a normal \
+appointment. This is triage guidance, not a diagnosis - do not diagnose, just route the patient."""
+
+
+def generate_symptom_check(symptoms: str, allergies: str, chronic_conditions: str) -> dict:
+    prompt = SYMPTOM_CHECK_PROMPT.format(
+        symptoms=symptoms,
+        allergies=allergies or "None reported",
+        chronic_conditions=chronic_conditions or "None reported",
+    )
+    data = _call(prompt)
+    try:
+        return {
+            "urgency": data["urgency"],
+            "specialist": data["specialist"],
+            "explanation_uz": data["uz"],
+            "explanation_ru": data["ru"],
+        }
+    except KeyError as e:
+        raise SummaryGenerationError(f"Missing field in AI response: {e}")
+
+
+PREP_QUESTIONS_PROMPT = """A patient in Uzbekistan has an upcoming appointment. Reason for visit:
+
+{reason}
+
+Patient's known chronic conditions: {chronic_conditions}
+Patient's current medications: {current_medications}
+
+Respond with ONLY valid JSON, no markdown fences:
+{{
+  "uz": ["question 1", "question 2", "question 3"],
+  "ru": ["question 1", "question 2", "question 3"]
+}}
+
+Generate 3-5 specific questions this patient should ask their doctor during this visit, based on \
+their reason for visiting and their medical background. Written in Uzbek and Russian respectively."""
+
+
+def generate_prep_questions(reason: str, chronic_conditions: str, current_medications: str) -> dict:
+    prompt = PREP_QUESTIONS_PROMPT.format(
+        reason=reason,
+        chronic_conditions=chronic_conditions or "None reported",
+        current_medications=current_medications or "None reported",
+    )
+    data = _call(prompt)
+    try:
+        return {
+            "questions_uz": json.dumps(data["uz"], ensure_ascii=False),
+            "questions_ru": json.dumps(data["ru"], ensure_ascii=False),
+        }
+    except KeyError as e:
+        raise SummaryGenerationError(f"Missing field in AI response: {e}")
+
+
+INTERACTION_PROMPT = """A doctor in Uzbekistan is about to prescribe a new medication to a patient.
+
+New medication: {new_drug} {new_dosage}
+Patient's current medications: {current_medications}
+Patient's known allergies: {allergies}
+
+Respond with ONLY valid JSON, no markdown fences:
+{{
+  "has_warning": true or false,
+  "warning": "explanation of the dangerous interaction or allergy conflict, in plain English, or empty string if none"
+}}
+
+Only set has_warning true for a genuine, clinically real interaction or allergy conflict - do not \
+invent risks that don't exist."""
+
+
+def check_medication_interactions(new_drug: str, new_dosage: str, current_medications: str, allergies: str) -> dict:
+    prompt = INTERACTION_PROMPT.format(
+        new_drug=new_drug,
+        new_dosage=new_dosage or "",
+        current_medications=current_medications or "None reported",
+        allergies=allergies or "None reported",
+    )
+    data = _call(prompt, max_tokens=512)
+    try:
+        return {"has_warning": bool(data["has_warning"]), "warning": data["warning"]}
+    except KeyError as e:
+        raise SummaryGenerationError(f"Missing field in AI response: {e}")

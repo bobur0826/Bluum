@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Test Results{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Test results</h1>
+
+    {% if not results %}<p class="subtitle">No test results uploaded yet.</p>{% endif %}
+
+    {% for r in results %}
+      <a class="field-row" style="text-decoration:none; color:inherit; display:flex;" href="/patients/{{ patient.token }}/results/{{ r.id }}">
+        <span class="field-label">{{ r.uploaded_at.strftime("%Y-%m-%d") }}</span>
+        <span class="field-value">{{ "Urgent" if r.risk_level == "urgent" else "Routine" }}</span>
+      </a>
+    {% endfor %}
+
+    <a class="button" href="/patients/{{ patient.token }}/results/upload">Upload a result</a>
+  </div>
+{% endblock %}

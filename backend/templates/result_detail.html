@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Test Result{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge" style="{{ 'color:var(--danger); border-color:var(--danger);' if result.risk_level == 'urgent' else '' }}">
+      {{ "Urgent — contact your hospital soon" if result.risk_level == "urgent" else "Routine" }}
+    </span>
+    <h1>{{ result.uploaded_at.strftime("%Y-%m-%d") }}</h1>
+
+    <div class="section-title">O'zbekcha</div>
+    <p>{{ result.explanation_uz }}</p>
+    <div class="section-title">Русский</div>
+    <p>{{ result.explanation_ru }}</p>
+
+    <a class="button button-secondary" href="/patients/{{ patient.token }}/results">Back to results</a>
+  </div>
+{% endblock %}

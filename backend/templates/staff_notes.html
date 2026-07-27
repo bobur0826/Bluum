@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Staff Notes{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }} — internal only, never shown to patient</span>
+    <h1>Staff notes</h1>
+
+    {% if not notes %}<p class="subtitle">No notes yet.</p>{% endif %}
+    {% for n in notes %}
+      <div class="field-row" style="display:block;">
+        <div style="color:var(--text-muted); font-size:12px;">{{ n.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+        <div>{{ n.note }}</div>
+      </div>
+    {% endfor %}
+
+    <form method="post" style="margin-top:20px;">
+      <label class="required">Note</label>
+      <textarea name="note" rows="3" required></textarea>
+      <button type="submit">Add note</button>
+    </form>
+  </div>
+{% endblock %}

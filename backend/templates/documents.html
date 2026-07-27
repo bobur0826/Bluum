@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Documents{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Documents</h1>
+
+    {% if error %}<p style="color:var(--danger); font-size:14px;">{{ error }}</p>{% endif %}
+    {% if not documents %}<p class="subtitle">No documents uploaded yet.</p>{% endif %}
+
+    {% for d in documents %}
+      <div class="field-row">
+        <span class="field-label">{{ d.category|capitalize }} — {{ d.uploaded_at.strftime("%Y-%m-%d") }}</span>
+        <a class="field-value" href="/patients/{{ patient.token }}/documents/{{ d.id }}/download">{{ d.original_filename }}</a>
+      </div>
+    {% endfor %}
+
+    <form method="post" enctype="multipart/form-data" style="margin-top:20px;">
+      <label class="required">Category</label>
+      <select name="category" required style="width:100%; padding:12px; background:var(--bg-elevated-2); border:1px solid var(--border-strong); border-radius:10px; color:var(--text-primary); font-size:16px;">
+        <option value="prescription">Prescription</option>
+        <option value="referral">Referral letter</option>
+        <option value="insurance">Insurance card</option>
+        <option value="lab">Lab result</option>
+        <option value="other">Other</option>
+      </select>
+      <label class="required">File</label>
+      <input type="file" name="file" required>
+      <button type="submit">Upload</button>
+    </form>
+  </div>
+{% endblock %}

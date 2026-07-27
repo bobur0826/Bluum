@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Prescriptions{% endblock %}
+{% block content %}
+  <div class="card">
+    <span class="badge">{{ patient.full_name }}</span>
+    <h1>Prescriptions</h1>
+
+    {% if not prescriptions %}<p class="subtitle">No prescriptions yet.</p>{% endif %}
+    {% for rx in prescriptions %}
+      <div class="section-title">{{ rx.created_at.strftime("%Y-%m-%d") }}</div>
+      <div class="field-row"><span class="field-label">Drug</span><span class="field-value">{{ rx.drug_name }} — {{ rx.dosage }}</span></div>
+      {% if rx.duration %}<div class="field-row"><span class="field-label">Duration</span><span class="field-value">{{ rx.duration }}</span></div>{% endif %}
+      {% if rx.instructions %}<div class="field-row"><span class="field-label">Instructions</span><span class="field-value">{{ rx.instructions }}</span></div>{% endif %}
+      {% if rx.interaction_warning %}<p style="color:var(--danger); font-size:14px; margin-top:6px;">⚠ {{ rx.interaction_warning }}</p>{% endif %}
+    {% endfor %}
+  </div>
+{% endblock %}
