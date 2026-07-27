@@ -29,8 +29,7 @@
           <a href="/hospital/appointments" class="{{ 'active' if '/hospital/appointments' in request.path }}">Appointments</a>
         {% else %}
           <a href="/" class="{{ 'active' if request.path == '/' }}">Home</a>
-          <a href="/patient/new" class="{{ 'active' if request.path == '/patient/new' }}">I'm a patient</a>
-          <a href="/patient/login" class="{{ 'active' if request.path == '/patient/login' }}">Patient login</a>
+          <a href="/patient/new" class="{{ 'active' if request.path in ['/patient/new', '/patient/login'] }}">I'm a patient</a>
           <a href="/staff/login" class="{{ 'active' if '/staff/' in request.path }}">Hospital staff</a>
         {% endif %}
       </nav>
