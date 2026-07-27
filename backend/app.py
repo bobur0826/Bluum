@@ -5,8 +5,11 @@ from datetime import date, datetime, timedelta
 
 import qrcode
 from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
 from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+
+load_dotenv()
 
 from ai_summary import (
     SummaryGenerationError,

@@ -1,9 +1,9 @@
 import json
 import os
 
-import anthropic
+from openai import OpenAI
 
-MODEL = "claude-sonnet-5"
+MODEL = "gpt-4o"
 
 REGISTER_INSTRUCTIONS = {
     "simple": "Use everyday words a non-medical person understands. No clinical jargon.",
@@ -17,20 +17,24 @@ class SummaryGenerationError(Exception):
 
 
 def _client():
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise SummaryGenerationError("ANTHROPIC_API_KEY is not set")
-    return anthropic.Anthropic(api_key=api_key)
+        raise SummaryGenerationError("OPENAI_API_KEY is not set")
+    return OpenAI(api_key=api_key)
 
 
 def _call(prompt: str, max_tokens: int = 1024) -> dict:
-    response = _client().messages.create(
-        model=MODEL,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text.strip()
-    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        response = _client().chat.completions.create(
+            model=MODEL,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as e:
+        raise SummaryGenerationError(f"OpenAI request failed: {e}")
+
+    raw = response.choices[0].message.content.strip()
     try:
         return json.loads(raw)
     except json.JSONDecodeError as e:

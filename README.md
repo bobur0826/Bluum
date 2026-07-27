@@ -10,13 +10,11 @@ Phase 2 (post-investment feature set) are both implemented.
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY="your-key-here"      # needed for all AI features
-export ESKIZ_EMAIL="your-eskiz-email"          # optional — needed for real SMS reminders
-export ESKIZ_PASSWORD="your-eskiz-password"    # optional — without it, SMS calls just log and no-op
+cp .env.example .env   # then fill in OPENAI_API_KEY (and optionally Eskiz creds for real SMS)
 python app.py
 ```
 
-Opens on `http://localhost:5001`. Without `ANTHROPIC_API_KEY`, AI-dependent forms show a clear
+Opens on `http://localhost:5001`. Without `OPENAI_API_KEY`, AI-dependent forms show a clear
 error instead of generating — nothing crashes, nothing is lost.
 
 ## Phase 1 — MVP
