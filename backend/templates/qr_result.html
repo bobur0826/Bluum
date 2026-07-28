@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block title %}MedPass — Your QR Code{% endblock %}
 {% block content %}
-  <div class="card qr-wrap">
-    <span class="badge">Profile saved</span>
+  <div class="card qr-wrap" id="id-card">
+    <span class="badge no-print">Profile saved</span>
     <h1>You're all set, {{ patient.full_name.split(" ")[0] }}</h1>
-    <p class="subtitle">Show this QR code at reception. All your paperwork will be filled in automatically.</p>
+    <p class="subtitle no-print">Show this QR code at reception. All your paperwork will be filled in automatically.</p>
     <img src="/patients/{{ patient.token }}/qr.png" alt="Your MedPass QR code">
-    <p class="subtitle">Save a screenshot — you won't need to fill this in again.</p>
-    <a class="button" href="/patients/{{ patient.token }}/dashboard">Go to your dashboard</a>
+    <p style="font-weight:600; margin:12px 0 0;">{{ patient.full_name }}</p>
+    <p class="subtitle" style="margin:2px 0 0;">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+    <p class="subtitle no-print">Save a screenshot, or print a card to carry as backup.</p>
+    <button class="no-print" onclick="window.print()" style="background:transparent; border:1px solid var(--border-strong); color:var(--text-primary);">Print my ID card</button>
+    <a class="button no-print" href="/patients/{{ patient.token }}/dashboard">Go to your dashboard</a>
   </div>
 {% endblock %}

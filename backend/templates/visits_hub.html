@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Appointments{% endblock %}
+{% block content %}
+  <h1 style="max-width:560px; margin:0 auto 16px;">Appointments</h1>
+
+  <div class="list-panel">
+    <a class="list-item" href="/patients/{{ patient.token }}/history">
+      <span class="list-item-icon">🕓</span>
+      <span class="list-item-text"><h2>Appointment history</h2><p>Past visits, explained in plain language</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+    <a class="list-item" href="/patients/{{ patient.token }}/appointments">
+      <span class="list-item-icon">📅</span>
+      <span class="list-item-text"><h2>Book an appointment</h2><p>Request a visit by department</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+    <a class="list-item" href="/patients/{{ patient.token }}/appointments/prepare">
+      <span class="list-item-icon">📋</span>
+      <span class="list-item-text"><h2>Prepare for a visit</h2><p>Get questions to ask your doctor</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+  </div>
+{% endblock %}

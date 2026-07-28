@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}MedPass — Profile{% endblock %}
+{% block content %}
+  <div class="data-page">
+    <div class="profile-header">
+      <div class="avatar">{{ patient.full_name[0] }}</div>
+      <div>
+        <h1>{{ patient.full_name }}</h1>
+        <p class="subtitle">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+      </div>
+    </div>
+
+    {% if next_question %}
+      <div class="panel" style="margin-bottom:20px; border-color: var(--accent);">
+        <h3>One more question</h3>
+        <p style="margin:0 0 12px;">{{ next_question }}</p>
+        <a class="button" style="margin-top:0;" href="/patients/{{ patient.token }}/profile/next-question">Answer</a>
+      </div>
+    {% endif %}
+
+    <div class="panel-grid">
+      <div class="panel">
+        <h3>Personal info</h3>
+        <div class="field-row"><span class="field-label">Blood type</span><span class="field-value">{{ patient.blood_type or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Height</span><span class="field-value">{{ (patient.height_cm ~ " cm") if patient.height_cm else "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Weight</span><span class="field-value">{{ (patient.weight_kg ~ " kg") if patient.weight_kg else "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Smoking</span><span class="field-value">{{ patient.smoking_status or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Occupation</span><span class="field-value">{{ patient.occupation or "—" }}</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>Emergency contact</h3>
+        <div class="field-row"><span class="field-label">Name</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Phone</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
+        <h3 style="margin-top:20px;">Language</h3>
+        <div class="field-row"><span class="field-label">Explanations in</span><span class="field-value">{{ "Simple language" if patient.language_register == "simple" else "Medical terms" }}</span></div>
+      </div>
+
+      <div class="panel" style="grid-column: 1 / -1;">
+        <h3>Medical info</h3>
+        <div class="field-row"><span class="field-label">Allergies</span><span class="field-value">{{ patient.allergies or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Chronic conditions</span><span class="field-value">{{ patient.chronic_conditions or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Current medications</span><span class="field-value">{{ patient.current_medications or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Family history</span><span class="field-value">{{ patient.family_history or "—" }}</span></div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

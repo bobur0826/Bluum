@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}MedPass — My Records{% endblock %}
+{% block content %}
+  <h1 style="max-width:560px; margin:0 auto 16px;">My records</h1>
+
+  <div class="list-panel">
+    <a class="list-item" href="/patients/{{ patient.token }}/results">
+      <span class="list-item-icon">🧪</span>
+      <span class="list-item-text"><h2>Test results</h2><p>Upload lab results, get a plain-language explanation</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+    <a class="list-item" href="/patients/{{ patient.token }}/documents">
+      <span class="list-item-icon">📄</span>
+      <span class="list-item-text"><h2>Documents</h2><p>Prescriptions, referrals, insurance, lab results</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+    <a class="list-item" href="/patients/{{ patient.token }}/medications">
+      <span class="list-item-icon">💊</span>
+      <span class="list-item-text"><h2>Medications</h2><p>Track what you're taking and when</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+    <a class="list-item" href="/patients/{{ patient.token }}/prescriptions">
+      <span class="list-item-icon">📝</span>
+      <span class="list-item-text"><h2>Prescriptions</h2><p>Everything a doctor has prescribed you</p></span>
+      <span class="list-item-chevron">›</span>
+    </a>
+  </div>
+{% endblock %}

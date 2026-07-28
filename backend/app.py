@@ -21,6 +21,7 @@ from ai_summary import (
 )
 from auth import StaffUser, login_manager
 from models import (
+    OTP_TTL_MINUTES,
     Appointment,
     AppointmentSummary,
     CheckIn,
@@ -51,6 +52,47 @@ def create_app():
     def get_patient_or_404(token):
         return Patient.query.filter_by(token=token).first_or_404()
 
+    @app.context_processor
+    def inject_notifications():
+        # Staff identity takes priority: a browser can hold both a patient session and a
+        # staff login at once (e.g. a doctor who also registered as a patient), and whichever
+        # role the current page is actually rendering for should win - staff pages always
+        # authenticate via current_user, so check that first rather than a leftover session key.
+        items = []
+        if current_user.is_authenticated:
+            pending = (
+                AppointmentSummary.query.filter_by(status="pending_review")
+                .order_by(AppointmentSummary.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            names = {p.token: p.full_name for p in Patient.query.all()}
+            items = [
+                {
+                    "text": f"{names.get(s.patient_token, 'Patient')} — awaiting review",
+                    "url": url_for("review_summary", token=s.patient_token, summary_id=s.id),
+                }
+                for s in pending
+            ]
+        elif session.get("patient_token"):
+            patient_token = session["patient_token"]
+            unseen = (
+                AppointmentSummary.query.filter_by(
+                    patient_token=patient_token, status="approved", patient_viewed=False
+                )
+                .order_by(AppointmentSummary.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            items = [
+                {
+                    "text": f"Visit summary ready — {s.created_at.strftime('%b %d')}",
+                    "url": url_for("view_summary", token=patient_token, summary_id=s.id),
+                }
+                for s in unseen
+            ]
+        return dict(notification_items=items, notification_count=len(items))
+
     # ---------------------------------------------------------------- home / patient profile
 
     @app.get("/")
@@ -61,32 +103,29 @@ def create_app():
     def patient_form():
         return render_template("patient_form.html")
 
+    def _send_otp_and_redirect(patient, next_mode):
+        code = patient.generate_otp()
+        db.session.commit()
+        sent = send_sms(patient.phone, f"Your MedPass verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes.")
+        # If SMS isn't configured (no Eskiz creds), show the code directly so the flow
+        # stays testable/demoable without real SMS delivery.
+        dev_code = None if sent else code
+        return redirect(url_for("patient_verify_form", phone=patient.phone, next=next_mode, dev_code=dev_code))
+
     @app.post("/patients")
     def create_patient():
         form = request.form
-        if not form.get("full_name") or not form.get("dob") or not form.get("phone") or not form.get("password"):
-            abort(400, "full_name, dob, phone, and password are required")
+        if not form.get("full_name") or not form.get("dob") or not form.get("phone"):
+            abort(400, "full_name, dob, and phone are required")
         if Patient.query.filter_by(phone=form["phone"]).first():
             return render_template(
                 "patient_form.html", error="An account with that phone number already exists"
             ), 409
 
-        patient = Patient(
-            full_name=form["full_name"],
-            dob=form["dob"],
-            phone=form["phone"],
-            blood_type=form.get("blood_type"),
-            allergies=form.get("allergies"),
-            chronic_conditions=form.get("chronic_conditions"),
-            current_medications=form.get("current_medications"),
-            emergency_contact_name=form.get("emergency_contact_name"),
-            emergency_contact_phone=form.get("emergency_contact_phone"),
-        )
-        patient.set_password(form["password"])
+        patient = Patient(full_name=form["full_name"], dob=form["dob"], phone=form["phone"])
         db.session.add(patient)
         db.session.commit()
-        session["patient_token"] = patient.token
-        return redirect(url_for("show_qr", token=patient.token))
+        return _send_otp_and_redirect(patient, "register")
 
     @app.get("/patient/login")
     def patient_login_form():
@@ -94,12 +133,45 @@ def create_app():
 
     @app.post("/patient/login")
     def patient_login():
-        form = request.form
-        patient = Patient.query.filter_by(phone=form.get("phone")).first()
-        if not patient or not patient.check_password(form.get("password", "")):
-            return render_template("patient_login.html", error="Invalid phone number or password"), 401
+        phone = request.form.get("phone", "").strip()
+        patient = Patient.query.filter_by(phone=phone).first()
+        if not patient:
+            return render_template("patient_login.html", error="No account found for that phone number"), 404
+        return _send_otp_and_redirect(patient, "login")
+
+    @app.get("/patient/verify")
+    def patient_verify_form():
+        return render_template(
+            "patient_verify.html",
+            phone=request.args.get("phone"),
+            next_mode=request.args.get("next"),
+            dev_code=request.args.get("dev_code"),
+        )
+
+    @app.post("/patient/verify")
+    def patient_verify_submit():
+        phone = request.form.get("phone", "")
+        code = request.form.get("code", "").strip()
+        next_mode = request.form.get("next")
+        patient = Patient.query.filter_by(phone=phone).first()
+
+        if not patient or not patient.verify_otp(code):
+            return render_template(
+                "patient_verify.html", phone=phone, next_mode=next_mode, error="Invalid or expired code"
+            ), 401
+
+        db.session.commit()
         session["patient_token"] = patient.token
+        if next_mode == "register":
+            return redirect(url_for("show_qr", token=patient.token))
         return redirect(url_for("patient_dashboard", token=patient.token))
+
+    @app.post("/patient/verify/resend")
+    def patient_verify_resend():
+        phone = request.form.get("phone", "")
+        next_mode = request.form.get("next")
+        patient = Patient.query.filter_by(phone=phone).first_or_404()
+        return _send_otp_and_redirect(patient, next_mode)
 
     @app.get("/patient/logout")
     def patient_logout():
@@ -126,6 +198,16 @@ def create_app():
         patient = get_patient_or_404(token)
         return render_template("patient_dashboard.html", patient=patient)
 
+    @app.get("/patients/<token>/records")
+    def records_hub(token):
+        patient = get_patient_or_404(token)
+        return render_template("records_hub.html", patient=patient)
+
+    @app.get("/patients/<token>/visits")
+    def visits_hub(token):
+        patient = get_patient_or_404(token)
+        return render_template("visits_hub.html", patient=patient)
+
     @app.get("/patients/<token>/history")
     def patient_history(token):
         patient = get_patient_or_404(token)
@@ -136,6 +218,12 @@ def create_app():
         return render_template("history.html", patient=patient, summaries=summaries)
 
     # ---------------------------------------------------------------- progressive profile
+
+    @app.get("/patients/<token>/profile")
+    def profile_overview(token):
+        patient = get_patient_or_404(token)
+        field, question = patient.next_progressive_question()
+        return render_template("profile_overview.html", patient=patient, next_question=question)
 
     @app.get("/patients/<token>/profile/next-question")
     def profile_next_question(token):
@@ -271,6 +359,8 @@ def create_app():
         summary = AppointmentSummary.query.filter_by(id=summary_id, patient_token=token).first_or_404()
         summary.status = "approved"
         db.session.commit()
+        patient = get_patient_or_404(token)
+        send_sms(patient.phone, "MedPass: your visit summary is ready. Open the app to see what your doctor said.")
         return redirect(url_for("reception_view", token=token))
 
     @app.get("/patients/<token>/summary/<int:summary_id>")
@@ -279,6 +369,9 @@ def create_app():
         summary = AppointmentSummary.query.filter_by(id=summary_id, patient_token=token).first_or_404()
         if summary.status != "approved" and not current_user.is_authenticated:
             return render_template("summary_pending.html", patient=patient), 403
+        if summary.status == "approved" and not current_user.is_authenticated and not summary.patient_viewed:
+            summary.patient_viewed = True
+            db.session.commit()
         return render_template("summary_result.html", patient=patient, summary=summary)
 
     @app.get("/patients/<token>/summary/<int:summary_id>/discharge")

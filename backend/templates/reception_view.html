@@ -1,27 +1,46 @@
 {% extends "base.html" %}
 {% block title %}MedPass — Reception{% endblock %}
 {% block content %}
-  <div class="card">
-    <span class="badge">Scanned in &lt; 1 second</span>
-    <h1>{{ patient.full_name }}</h1>
-    <p class="subtitle">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+  <div class="data-page">
+    <div class="profile-header">
+      <div class="avatar">{{ patient.full_name[0] }}</div>
+      <div>
+        <span class="badge" style="margin-bottom:4px;">Scanned in &lt; 1 second</span>
+        <h1>{{ patient.full_name }}</h1>
+        <p class="subtitle" style="margin-bottom:0;">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+      </div>
+    </div>
 
-    <div class="section-title">Basic info</div>
-    <div class="field-row"><span class="field-label">Blood type</span><span class="field-value">{{ patient.blood_type or "—" }}</span></div>
+    <div class="panel-grid">
+      <div class="panel">
+        <h3>Basic info</h3>
+        <div class="field-row"><span class="field-label">Blood type</span><span class="field-value">{{ patient.blood_type or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Height</span><span class="field-value">{{ (patient.height_cm ~ " cm") if patient.height_cm else "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Weight</span><span class="field-value">{{ (patient.weight_kg ~ " kg") if patient.weight_kg else "—" }}</span></div>
+      </div>
 
-    <div class="section-title">Medical history</div>
-    <div class="field-row"><span class="field-label">Allergies</span><span class="field-value">{{ patient.allergies or "None reported" }}</span></div>
-    <div class="field-row"><span class="field-label">Chronic conditions</span><span class="field-value">{{ patient.chronic_conditions or "None reported" }}</span></div>
-    <div class="field-row"><span class="field-label">Current medications</span><span class="field-value">{{ patient.current_medications or "None reported" }}</span></div>
+      <div class="panel">
+        <h3>Emergency contact</h3>
+        <div class="field-row"><span class="field-label">Name</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">Phone</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
+      </div>
 
-    <div class="section-title">Emergency contact</div>
-    <div class="field-row"><span class="field-label">Name</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
-    <div class="field-row"><span class="field-label">Phone</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
+      <div class="panel" style="grid-column: 1 / -1;">
+        <h3>Medical history</h3>
+        <div class="field-row"><span class="field-label">Allergies</span><span class="field-value">{{ patient.allergies or "None reported" }}</span></div>
+        <div class="field-row"><span class="field-label">Chronic conditions</span><span class="field-value">{{ patient.chronic_conditions or "None reported" }}</span></div>
+        <div class="field-row"><span class="field-label">Current medications</span><span class="field-value">{{ patient.current_medications or "None reported" }}</span></div>
+        <div class="field-row"><span class="field-label">Family history</span><span class="field-value">{{ patient.family_history or "—" }}</span></div>
+      </div>
+    </div>
 
-    <a class="button" href="/patients/{{ patient.token }}/summary/new">Add appointment notes</a>
-    <a class="button button-secondary" href="/patients/{{ patient.token }}/history">View appointment history</a>
-    <a class="button button-secondary" href="/patients/{{ patient.token }}/prescriptions/new">Write prescription</a>
-    <a class="button button-secondary" href="/patients/{{ patient.token }}/notes">Staff notes (internal)</a>
-    <a class="button button-secondary" href="/patients/{{ patient.token }}/dashboard">Full patient dashboard</a>
+    <div class="panel">
+      <h3>Actions</h3>
+      <a class="button" href="/patients/{{ patient.token }}/summary/new">Add appointment notes</a>
+      <a class="button button-secondary" href="/patients/{{ patient.token }}/history">View appointment history</a>
+      <a class="button button-secondary" href="/patients/{{ patient.token }}/prescriptions/new">Write prescription</a>
+      <a class="button button-secondary" href="/patients/{{ patient.token }}/notes">Staff notes (internal)</a>
+      <a class="button button-secondary" href="/patients/{{ patient.token }}/dashboard">Full patient dashboard</a>
+    </div>
   </div>
 {% endblock %}

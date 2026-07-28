@@ -1,10 +1,13 @@
+import random
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
 
 db = SQLAlchemy()
+
+OTP_TTL_MINUTES = 10
 
 
 def generate_token():
@@ -20,7 +23,6 @@ class Patient(db.Model):
     full_name = db.Column(db.String(120), nullable=False)
     dob = db.Column(db.String(20), nullable=False)
     phone = db.Column(db.String(30), nullable=False, unique=True)
-    password_hash = db.Column(db.String(255), nullable=True)
     blood_type = db.Column(db.String(10), nullable=True)
 
     allergies = db.Column(db.Text, nullable=True)
@@ -34,15 +36,27 @@ class Patient(db.Model):
     language_register = db.Column(db.String(16), nullable=False, default="simple")
 
     # Progressive profile: one of these is asked at a time, at check-in, until complete.
+    # Safety-relevant fields first, "nice to have" fields last.
     height_cm = db.Column(db.Integer, nullable=True)
     weight_kg = db.Column(db.Integer, nullable=True)
     smoking_status = db.Column(db.String(32), nullable=True)
     occupation = db.Column(db.String(120), nullable=True)
     family_history = db.Column(db.Text, nullable=True)
 
+    # Phone verification (SMS OTP is the only login method - no password).
+    phone_verified = db.Column(db.Boolean, nullable=False, default=False)
+    otp_code = db.Column(db.String(6), nullable=True)
+    otp_expires_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     PROGRESSIVE_FIELDS = [
+        ("allergies", "Do you have any allergies? (write 'none' if not)"),
+        ("chronic_conditions", "Any chronic conditions, like asthma or diabetes? (write 'none' if not)"),
+        ("current_medications", "Are you currently taking any medications? (write 'none' if not)"),
+        ("emergency_contact_name", "Who should we contact in an emergency? (name)"),
+        ("emergency_contact_phone", "Their phone number?"),
+        ("blood_type", "What is your blood type, if you know it?"),
         ("height_cm", "What is your height (cm)?"),
         ("weight_kg", "What is your weight (kg)?"),
         ("smoking_status", "Do you smoke? (never / former / current)"),
@@ -56,13 +70,23 @@ class Patient(db.Model):
                 return field, question
         return None, None
 
-    def set_password(self, raw):
-        self.password_hash = generate_password_hash(raw)
+    def generate_otp(self):
+        code = f"{random.randint(0, 999999):06d}"
+        self.otp_code = code
+        self.otp_expires_at = datetime.utcnow() + timedelta(minutes=OTP_TTL_MINUTES)
+        return code
 
-    def check_password(self, raw):
-        if not self.password_hash:
+    def verify_otp(self, code):
+        if not self.otp_code or not self.otp_expires_at:
             return False
-        return check_password_hash(self.password_hash, raw)
+        if datetime.utcnow() > self.otp_expires_at:
+            return False
+        if code != self.otp_code:
+            return False
+        self.phone_verified = True
+        self.otp_code = None
+        self.otp_expires_at = None
+        return True
 
 
 class Staff(db.Model):
@@ -117,6 +141,7 @@ class AppointmentSummary(db.Model):
     status = db.Column(db.String(20), nullable=False, default="pending_review")
     follow_up_date = db.Column(db.Date, nullable=True)
     follow_up_sms_sent = db.Column(db.Boolean, nullable=False, default=False)
+    patient_viewed = db.Column(db.Boolean, nullable=False, default=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
