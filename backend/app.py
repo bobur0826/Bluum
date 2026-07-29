@@ -11,7 +11,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 
 load_dotenv()
 
-from ai_summary import (
+from prompts import (
     SummaryGenerationError,
     check_medication_interactions,
     generate_prep_questions,
@@ -35,6 +35,7 @@ from models import (
     db,
 )
 from sms import send_sms
+from symptom_model import predict_diseases
 from uploads import save_upload, upload_path
 
 
@@ -511,7 +512,10 @@ def create_app():
             result = generate_symptom_check(symptoms, patient.allergies, patient.chronic_conditions)
         except SummaryGenerationError as e:
             return render_template("symptom_checker.html", patient=patient, error=str(e), symptoms=symptoms), 502
-        return render_template("symptom_checker.html", patient=patient, result=result, symptoms=symptoms)
+        predictions = predict_diseases(symptoms)
+        return render_template(
+            "symptom_checker.html", patient=patient, result=result, symptoms=symptoms, predictions=predictions
+        )
 
     # ---------------------------------------------------------------- appointment prep
 

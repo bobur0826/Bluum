@@ -5,6 +5,9 @@
     <span class="badge">{{ patient.full_name }}</span>
     <h1>Symptom checker</h1>
     <p class="subtitle">Describe how you're feeling. This is triage guidance, not a diagnosis.</p>
+    <p style="background:var(--bg-elevated-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--text-secondary); margin:0 0 20px;">
+      ⚠ Not a medical diagnosis — always consult a licensed doctor. If this is an emergency, call emergency services immediately.
+    </p>
 
     {% if error %}<p style="color:var(--danger); font-size:14px;">{{ error }}</p>{% endif %}
 
@@ -20,6 +23,13 @@
       <div class="field-row"><span class="field-label">See a</span><span class="field-value">{{ result.specialist }}</span></div>
       <p style="margin-top:16px;">{{ result.explanation_uz }}</p>
       <p style="color:var(--text-secondary);">{{ result.explanation_ru }}</p>
+    {% endif %}
+
+    {% if predictions %}
+      <div class="section-title" style="margin-top:24px;">Trained model (based on 247k patient records)</div>
+      {% for p in predictions %}
+        <div class="field-row"><span class="field-label">{{ p.disease|capitalize }}</span><span class="field-value">{{ (p.confidence * 100)|round|int }}%</span></div>
+      {% endfor %}
     {% endif %}
   </div>
 {% endblock %}
