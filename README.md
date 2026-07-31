@@ -35,6 +35,21 @@ python app.py
 Opens on `http://localhost:5001`. The SQLite database (`backend/instance/medpass.db`) and any
 uploaded files (`backend/uploads/`) are created automatically on first run.
 
+### Production deployment
+
+`python app.py` is dev-only (Flask's built-in server). In production:
+
+```bash
+export FLASK_DEBUG=0
+export SECRET_KEY=...        # required - see .env.example for how to generate one
+export DATABASE_URL=postgresql://user:pass@host:5432/medpass
+gunicorn -w 4 -b 0.0.0.0:5001 app:app
+```
+
+Put Nginx (or similar) in front with a real TLS certificate — Flask itself never terminates
+HTTPS. `FLASK_DEBUG=0` also switches session cookies to HTTPS-only and refuses to start without
+a real `SECRET_KEY`, so a misconfigured deployment fails loudly instead of running insecurely.
+
 ### Environment variables (`backend/.env`)
 
 | Variable | Required | Purpose |

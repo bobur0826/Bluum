@@ -8,6 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
@@ -41,9 +42,27 @@ from uploads import save_upload, upload_path
 
 def create_app():
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///medpass.db"
+
+    secret_key = os.environ.get("SECRET_KEY")
+    if not secret_key:
+        if os.environ.get("FLASK_DEBUG", "1") != "1":
+            raise RuntimeError("SECRET_KEY must be set in production (see .env.example)")
+        secret_key = "dev-secret-change-me"  # local dev only, never used when FLASK_DEBUG=0
+    app.config["SECRET_KEY"] = secret_key
+
+    # Falls back to local SQLite for dev; set DATABASE_URL (e.g. postgresql://...) in production.
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///medpass.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SECRET_KEY"] = "dev-secret-change-me"  # session signing; override in production
+
+    # Cookies only over HTTPS once actually deployed (FLASK_DEBUG=0); allows plain HTTP for local dev.
+    app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_DEBUG", "1") != "1"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+    # Trust X-Forwarded-* headers from the Nginx reverse proxy in front of this app,
+    # so Flask sees the real client scheme (https) instead of the internal http hop.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     db.init_app(app)
     login_manager.init_app(app)
 
@@ -733,4 +752,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=os.environ.get("FLASK_DEBUG", "1") == "1")
