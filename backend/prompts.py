@@ -133,37 +133,52 @@ def generate_test_result_explanation(result_text: str, chronic_conditions: str) 
         raise SummaryGenerationError(f"Missing field in AI response: {e}")
 
 
-SYMPTOM_CHECK_PROMPT = """A patient in Uzbekistan describes these symptoms:
-
-{symptoms}
+CHAT_PROMPT = """You are Bluum, a friendly, knowledgeable medical assistant chatting with a patient \
+in Uzbekistan. Talk naturally, like a real conversation - not a rigid form.
 
 Patient's known allergies: {allergies}
 Patient's known chronic conditions: {chronic_conditions}
+Patient's current medications: {current_medications}
+
+Conversation so far:
+{history}
+
+Patient's new message: "{message}"
+
+Reply helpfully, taking their known conditions/allergies/medications into account when relevant. \
+If they're just asking a general question (lifestyle, sports, nutrition, a follow-up question, etc.) \
+- just answer it directly and conversationally, no diagnosis format needed. Only set is_symptom_report \
+to true if they are actually describing new or worsening symptoms that warrant medical triage.
 
 Respond with ONLY valid JSON, no markdown fences:
 {{
-  "urgency": "emergency" or "urgent" or "routine",
-  "specialist": "the type of doctor/specialist they should see, in English (e.g. Cardiologist)",
-  "uz": "1-2 sentence explanation of the recommendation, in Uzbek",
-  "ru": "the same explanation in Russian",
-  "en": "the same explanation in English"
+  "is_symptom_report": true or false,
+  "urgency": "emergency" or "urgent" or "routine" or null (null unless is_symptom_report is true),
+  "specialist": "type of doctor to see, in English, or null" (null unless is_symptom_report is true),
+  "en": "your reply, in English, 1-4 sentences",
+  "uz": "the same reply, in Uzbek",
+  "ru": "the same reply, in Russian"
 }}
 
 "emergency" = go to the ER now. "urgent" = see a doctor within 1-2 days. "routine" = book a normal \
-appointment. This is triage guidance, not a diagnosis - do not diagnose, just route the patient."""
+appointment. This is guidance, not a diagnosis - never definitively diagnose."""
 
 
-def generate_symptom_check(symptoms: str, allergies: str, chronic_conditions: str) -> dict:
-    prompt = SYMPTOM_CHECK_PROMPT.format(
-        symptoms=symptoms,
+def generate_chat_reply(message: str, history: list, allergies: str, chronic_conditions: str, current_medications: str) -> dict:
+    history_text = "\n".join(f"{h['role']}: {h['text']}" for h in history[-8:]) or "(none yet)"
+    prompt = CHAT_PROMPT.format(
+        message=message,
+        history=history_text,
         allergies=allergies or "None reported",
         chronic_conditions=chronic_conditions or "None reported",
+        current_medications=current_medications or "None reported",
     )
     data = _call(prompt)
     try:
         return {
-            "urgency": data["urgency"],
-            "specialist": data["specialist"],
+            "is_symptom_report": bool(data.get("is_symptom_report")),
+            "urgency": data.get("urgency"),
+            "specialist": data.get("specialist"),
             "explanation_uz": data["uz"],
             "explanation_ru": data["ru"],
             "explanation_en": data.get("en", data["uz"]),

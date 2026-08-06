@@ -8,13 +8,9 @@
     {{ t('chat_disclaimer') }}
   </div>
 
-  {% if chat %}
-    <form method="post" action="/patients/{{ patient.token }}/symptom-checker/clear" style="margin-bottom:16px;">
-      <button type="submit" class="button-secondary" style="width:auto; margin:0; padding:8px 14px; font-size:12.5px;">{{ t('new_chat') }}</button>
-    </form>
-  {% endif %}
+  <button type="button" id="new-chat-btn" class="button-secondary" style="width:auto; margin:0 0 16px; padding:8px 14px; font-size:12.5px; {{ '' if chat else 'display:none;' }}">{{ t('new_chat') }}</button>
 
-  <div class="chat-thread">
+  <div class="chat-thread" id="chat-thread">
     {% for m in chat %}
       {% if m.role == "user" %}
         <div class="chat-bubble-row user"><div class="chat-bubble">{{ m.text }}</div></div>
@@ -26,7 +22,9 @@
             {% if m.error %}
               <p style="color:var(--danger); margin:0;">{{ m.error }}</p>
             {% else %}
-              <span class="urgency-tag {{ 'urgent' if m.urgency == 'urgent' }}">{{ m.urgency }} · see a {{ m.specialist }}</span>
+              {% if m.is_symptom_report and m.urgency %}
+                <span class="urgency-tag {{ 'urgent' if m.urgency == 'urgent' }}">{{ m.urgency }} · see a {{ m.specialist }}</span>
+              {% endif %}
               <p style="margin:0;">{{ m['explanation_' + current_lang] if m.get('explanation_' + current_lang) else m.explanation_uz }}</p>
               {% if m.predictions %}
                 <div class="predictions">
@@ -44,22 +42,121 @@
     {% endfor %}
   </div>
 
-  <div class="chat-examples-roller">
+  <div class="chat-examples-roller" id="chat-examples">
     {% for q in examples %}
-      <button type="button" class="chat-chip-sm" onclick="askExample('{{ q|replace("'", "\\'") }}')">{{ q }}</button>
+      <button type="button" class="chat-chip-sm" onclick="sendMessage({{ q|tojson }})">{{ q }}</button>
     {% endfor %}
   </div>
 
-  <form method="post" action="/patients/{{ patient.token }}/symptom-checker" class="chat-input-form">
+  <form id="chat-form" class="chat-input-form" onsubmit="return handleSubmit(event)">
     <textarea name="symptoms" id="symptoms-input" rows="1" required placeholder="{{ t('chat_input_placeholder') }}"></textarea>
-    <button type="submit">➤</button>
+    <button type="submit" id="send-btn">➤</button>
   </form>
 
   <script>
-    function askExample(text) {
-      const box = document.getElementById('symptoms-input');
-      box.value = text;
-      box.closest('form').submit();
+    const CHAT_URL = "/patients/{{ patient.token }}/symptom-checker";
+    const CLEAR_URL = "/patients/{{ patient.token }}/symptom-checker/clear";
+    const LANG = {{ current_lang|tojson }};
+    let sending = false;
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
     }
+
+    function userBubbleHtml(text) {
+      return `<div class="chat-bubble-row user"><div class="chat-bubble">${escapeHtml(text)}</div></div>`;
+    }
+
+    function loadingBubbleHtml() {
+      return `<div class="chat-bubble-row bot" id="loading-bubble">
+        <div><p class="chat-bubble-label">🩺 Bluum</p>
+        <div class="chat-bubble"><span class="chat-typing"><span></span><span></span><span></span></span></div>
+        </div></div>`;
+    }
+
+    function botBubbleHtml(m) {
+      if (m.error) {
+        return `<div class="chat-bubble-row bot"><div><p class="chat-bubble-label">🩺 Bluum</p>
+          <div class="chat-bubble"><p style="color:var(--danger); margin:0;">${escapeHtml(m.error)}</p></div></div></div>`;
+      }
+      let urgencyHtml = '';
+      if (m.is_symptom_report && m.urgency) {
+        const cls = m.urgency === 'urgent' ? 'urgency-tag urgent' : 'urgency-tag';
+        urgencyHtml = `<span class="${cls}">${escapeHtml(m.urgency)} · see a ${escapeHtml(m.specialist || '')}</span>`;
+      }
+      const text = m['explanation_' + LANG] || m.explanation_uz || '';
+      let predictionsHtml = '';
+      if (m.predictions && m.predictions.length) {
+        const rows = m.predictions.map(p =>
+          `<div class="prediction-row"><span class="dz">${escapeHtml(p.disease.charAt(0).toUpperCase() + p.disease.slice(1))}</span><span class="pct">${Math.round(p.confidence * 100)}%</span></div>`
+        ).join('');
+        predictionsHtml = `<div class="predictions"><p style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin:0 0 4px;">Trained model (247k patient records)</p>${rows}</div>`;
+      }
+      return `<div class="chat-bubble-row bot"><div><p class="chat-bubble-label">🩺 Bluum</p>
+        <div class="chat-bubble">${urgencyHtml}<p style="margin:0;">${escapeHtml(text)}</p>${predictionsHtml}</div></div></div>`;
+    }
+
+    function handleSubmit(e) {
+      e.preventDefault();
+      const box = document.getElementById('symptoms-input');
+      const text = box.value.trim();
+      if (!text) return false;
+      box.value = '';
+      sendMessage(text);
+      return false;
+    }
+
+    function sendMessage(text) {
+      if (sending || !text) return;
+      sending = true;
+      const thread = document.getElementById('chat-thread');
+      const sendBtn = document.getElementById('send-btn');
+      const box = document.getElementById('symptoms-input');
+      sendBtn.disabled = true;
+      box.disabled = true;
+
+      thread.insertAdjacentHTML('beforeend', userBubbleHtml(text));
+      thread.insertAdjacentHTML('beforeend', loadingBubbleHtml());
+      thread.scrollIntoView({ block: 'end' });
+      window.scrollTo(0, document.body.scrollHeight);
+
+      const params = new URLSearchParams();
+      params.set('symptoms', text);
+
+      fetch(CHAT_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params })
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('loading-bubble')?.remove();
+          thread.insertAdjacentHTML('beforeend', botBubbleHtml(data));
+          document.getElementById('new-chat-btn').style.display = '';
+          window.scrollTo(0, document.body.scrollHeight);
+        })
+        .catch(() => {
+          document.getElementById('loading-bubble')?.remove();
+          thread.insertAdjacentHTML('beforeend', botBubbleHtml({ error: 'Connection error — please try again.' }));
+        })
+        .finally(() => {
+          sending = false;
+          sendBtn.disabled = false;
+          box.disabled = false;
+          box.focus();
+        });
+    }
+
+    document.getElementById('new-chat-btn').addEventListener('click', function () {
+      fetch(CLEAR_URL, { method: 'POST' }).then(() => {
+        document.getElementById('chat-thread').innerHTML = '';
+        this.style.display = 'none';
+      });
+    });
+
+    document.getElementById('symptoms-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    });
   </script>
 {% endblock %}

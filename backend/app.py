@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 import qrcode
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
-from flask import Flask, abort, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, abort, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -17,7 +17,7 @@ from prompts import (
     check_medication_interactions,
     generate_prep_questions,
     generate_summary,
-    generate_symptom_check,
+    generate_chat_reply,
     generate_test_result_explanation,
 )
 from auth import StaffUser, login_manager
@@ -747,22 +747,34 @@ def create_app():
         patient = get_patient_or_404(token)
         symptoms = request.form.get("symptoms", "").strip()
         if not symptoms:
-            abort(400, "symptoms is required")
+            return jsonify({"error": "Message is empty"}), 400
 
         chat = session.get(_chat_key(token), [])
+        history = [
+            {"role": "Patient" if m["role"] == "user" else "Bluum",
+             "text": m.get("text") or m.get("explanation_en") or ""}
+            for m in chat
+        ]
         chat.append({"role": "user", "text": symptoms})
         try:
-            result = generate_symptom_check(symptoms, patient.allergies, patient.chronic_conditions)
-            predictions = predict_diseases(symptoms)
-            chat.append({
-                "role": "bot", "urgency": result["urgency"], "specialist": result["specialist"],
+            result = generate_chat_reply(
+                symptoms, history, patient.allergies, patient.chronic_conditions, patient.current_medications
+            )
+            predictions = predict_diseases(symptoms) if result["is_symptom_report"] else []
+            bot_msg = {
+                "role": "bot", "is_symptom_report": result["is_symptom_report"],
+                "urgency": result["urgency"], "specialist": result["specialist"],
                 "explanation_uz": result["explanation_uz"], "explanation_ru": result["explanation_ru"],
                 "explanation_en": result["explanation_en"], "predictions": predictions,
-            })
+            }
+            chat.append(bot_msg)
+            session[_chat_key(token)] = chat
+            return jsonify(bot_msg)
         except SummaryGenerationError as e:
-            chat.append({"role": "bot", "error": str(e)})
-        session[_chat_key(token)] = chat
-        return redirect(url_for("symptom_checker_form", token=token))
+            bot_msg = {"role": "bot", "error": str(e)}
+            chat.append(bot_msg)
+            session[_chat_key(token)] = chat
+            return jsonify(bot_msg), 502
 
     @app.post("/patients/<token>/symptom-checker/clear")
     def symptom_checker_clear(token):
