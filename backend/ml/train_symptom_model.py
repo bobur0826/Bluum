@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, top_k_accuracy_score
 
 DATA_PATH = "/Users/boburburkhoniddinnov/Downloads/dataset.csv"
-OUT_DIR = "/Users/boburburkhoniddinnov/MedPass/backend/ml"
+OUT_DIR = "/Users/boburburkhoniddinnov/Bluum/backend/ml"
 
 df = pd.read_csv(DATA_PATH)
 symptom_cols = [c for c in df.columns if c != "diseases"]
