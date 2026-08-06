@@ -17,7 +17,7 @@ import time
 
 import requests
 
-logger = logging.getLogger("medpass.sms")
+logger = logging.getLogger("bluum.sms")
 
 ESKIZ_BASE_URL = "https://notify.eskiz.uz/api"
 

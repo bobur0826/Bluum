@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}MedPass — Appointment Notes{% endblock %}
+{% block title %}Bluum — Appointment Notes{% endblock %}
 {% block content %}
   <div class="card">
     <span class="badge">{{ patient.full_name }}</span>
     <h1>Consultation notes</h1>
-    <p class="subtitle">Paste or type the doctor's raw notes. MedPass will turn this into a plain-language explanation for the patient in Uzbek and Russian.</p>
+    <p class="subtitle">Paste or type the doctor's raw notes. Bluum will turn this into a plain-language explanation for the patient in Uzbek and Russian.</p>
 
     {% if error %}
       <p style="color:var(--danger); font-size:14px;">Couldn't generate the summary: {{ error }}</p>

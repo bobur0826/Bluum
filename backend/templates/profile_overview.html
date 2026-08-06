@@ -1,22 +1,52 @@
 {% extends "base.html" %}
-{% block title %}MedPass — Profile{% endblock %}
+{% block title %}Bluum — Profile{% endblock %}
 {% block content %}
   <div class="data-page">
-    <div class="profile-header">
-      <div class="avatar">{{ patient.full_name[0] }}</div>
-      <div>
-        <h1>{{ patient.full_name }}</h1>
-        <p class="subtitle">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+
+    <div class="profile-hero">
+      <div class="profile-hero-top">
+        <div class="profile-qr"><img src="/patients/{{ patient.token }}/qr.png" alt="QR code"></div>
+        <div>
+          <p class="profile-hero-name">{{ patient.full_name }}</p>
+          <p class="profile-hero-sub">Member since {{ patient.created_at.strftime("%-d %b %Y") if patient.created_at else "—" }}</p>
+        </div>
+      </div>
+      <div class="profile-chips">
+        <span class="profile-chip">🎂 {{ patient.dob }}</span>
+        <span class="profile-chip">📱 {{ patient.phone }}</span>
+        <span class="profile-chip">🔥 {{ total_streak_days }} total streak days</span>
       </div>
     </div>
 
     {% if next_question %}
-      <div class="panel" style="margin-bottom:20px; border-color: var(--accent);">
+      <div class="panel" style="margin-bottom:16px; border-color: var(--accent);">
         <h3>One more question</h3>
         <p style="margin:0 0 12px;">{{ next_question }}</p>
         <a class="button" style="margin-top:0;" href="/patients/{{ patient.token }}/profile/next-question">Answer</a>
       </div>
     {% endif %}
+
+    <div class="card">
+      <div class="streaks-section-title">
+        <h2>My Streaks</h2>
+        <a href="/patients/{{ patient.token }}/habits/streaks">Manage</a>
+      </div>
+      <div class="streak-row">
+        <span class="streak-row-icon">🌙</span>
+        <span class="streak-row-text"><span class="name">Sleep schedule</span><br><span class="meta">Consistency streak</span></span>
+        <span class="streak-row-count">{{ sleep_streak }}d</span>
+      </div>
+      {% for h in habits %}
+        <div class="streak-row">
+          <span class="streak-row-icon">🔥</span>
+          <span class="streak-row-text"><span class="name">{{ h.name }}</span><br><span class="meta">{{ h.kind|capitalize }}</span></span>
+          <span class="streak-row-count">{{ h.current_streak() }}d</span>
+        </div>
+      {% endfor %}
+      {% if not habits %}
+        <p class="subtitle" style="margin:8px 0 0;">No habits yet — <a href="/patients/{{ patient.token }}/habits/streaks">start one</a>.</p>
+      {% endif %}
+    </div>
 
     <div class="panel-grid">
       <div class="panel">

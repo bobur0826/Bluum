@@ -1,34 +1,95 @@
 {% extends "base.html" %}
-{% block title %}MedPass — Your Dashboard{% endblock %}
+{% block title %}Bluum — Home{% endblock %}
 {% block content %}
-  <div class="profile-header" style="max-width:560px; margin:0 auto 20px;">
-    <div class="avatar">{{ patient.full_name[0] }}</div>
-    <div>
-      <h1>{{ patient.full_name }}</h1>
-      <p class="subtitle" style="margin-bottom:0;">Your health, in one place</p>
-    </div>
+  <p class="dash-greeting">{{ t(greeting) }} 🔥</p>
+  <p class="dash-name">{{ patient.full_name }}</p>
+
+  <div class="dash-search">
+    <span class="icon">🔍</span>
+    <input type="text" id="dash-search-input" placeholder="{{ t('search_placeholder') }}" oninput="filterDashLinks(this.value)">
   </div>
 
-  <div class="list-panel">
-    <a class="list-item" href="/patients/{{ patient.token }}/records">
-      <span class="list-item-icon">🗂</span>
-      <span class="list-item-text"><h2>My records</h2><p>Test results, documents, medications, prescriptions</p></span>
-      <span class="list-item-chevron">›</span>
+  <h2 class="section-heading">{{ t('your_streaks') }}</h2>
+  <div class="streak-scroll">
+    {% for h in habits %}
+      {% set streak = h.current_streak() %}
+      {% set n = h.name|lower %}
+      {% if h.kind == 'smoking' or 'smok' in n %}
+        {% set img = 'smoking.jpeg' %}
+      {% elif h.kind == 'alcohol' or 'alcohol' in n or 'drink' in n %}
+        {% set img = 'alcohol.jpeg' %}
+      {% elif 'walk' in n or 'morning' in n %}
+        {% set img = 'morning_walk.jpeg' %}
+      {% else %}
+        {% set img = none %}
+      {% endif %}
+      <a class="streak-scroll-card {{ 'photo' if img }}" {% if img %}style="background-image: linear-gradient(180deg, rgba(11,15,12,0.15) 40%, rgba(11,15,12,0.85)), url('/static/img/{{ img }}');"{% endif %} href="/patients/{{ patient.token }}/habits/streaks">
+        <div class="badges">
+          <span class="badge-pill">🔥 {{ streak }}-{{ t('day_streak') }}</span>
+        </div>
+        <p class="name">{{ h.name }}</p>
+        <span class="go">›</span>
+      </a>
+    {% endfor %}
+    <a class="streak-scroll-card photo" style="background-image: linear-gradient(180deg, rgba(11,15,12,0.1) 40%, rgba(11,15,12,0.85)), url('/static/img/sleep.jpeg');" href="/patients/{{ patient.token }}/habits">
+      <div class="badges">
+        <span class="badge-pill">🌙 {{ sleep_streak }}-{{ t('day_streak') }}</span>
+      </div>
+      <p class="name">{{ t('sleep_schedule') }}</p>
+      <span class="go">›</span>
     </a>
-    <a class="list-item" href="/patients/{{ patient.token }}/visits">
-      <span class="list-item-icon">📅</span>
-      <span class="list-item-text"><h2>Appointments</h2><p>History, booking, and preparing for a visit</p></span>
-      <span class="list-item-chevron">›</span>
-    </a>
-    <a class="list-item" href="/patients/{{ patient.token }}/symptom-checker">
-      <span class="list-item-icon">🩺</span>
-      <span class="list-item-text"><h2>Ask MedPass</h2><p>Describe symptoms, get urgency + specialist guidance</p></span>
-      <span class="list-item-chevron">›</span>
-    </a>
-    <a class="list-item" href="/patients/{{ patient.token }}/profile">
-      <span class="list-item-icon">👤</span>
-      <span class="list-item-text"><h2>Profile</h2><p>Your full medical profile, and any remaining questions</p></span>
-      <span class="list-item-chevron">›</span>
+    <a class="streak-scroll-card new" href="/patients/{{ patient.token }}/habits/streaks">
+      <p class="name">{{ t('start_new_streak') }}</p>
     </a>
   </div>
+
+  <h2 class="section-heading">{{ t('todays_plan') }}</h2>
+  {% for p in plan %}
+    <div class="plan-item">
+      <div class="plan-item-icon">{{ p.icon }}</div>
+      <div class="plan-item-body">
+        <div class="plan-item-top">
+          <span class="name">{{ t(p.label) }}</span>
+          <span class="tag">{{ t(p.tag) }}</span>
+        </div>
+        <p class="plan-item-sub">{{ p.value }}/{{ p.target }} {{ p.unit }}</p>
+        <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ p.pct }}%;"></div></div>
+      </div>
+    </div>
+  {% endfor %}
+  <a class="plan-item" href="/patients/{{ patient.token }}/habits" style="text-decoration:none;">
+    <div class="plan-item-icon">📊</div>
+    <div class="plan-item-body">
+      <div class="plan-item-top"><span class="name">{{ t('log_activity_title') }}</span><span class="tag">{{ t('open') }}</span></div>
+      <p class="plan-item-sub" style="margin-bottom:0;">{{ t('log_activity_sub') }}</p>
+    </div>
+  </a>
+
+  <h2 class="section-heading" style="margin-top:24px;">{{ t('quick_links') }}</h2>
+  <div id="dash-links">
+    <a class="plan-item" href="/patients/{{ patient.token }}/records" style="text-decoration:none;">
+      <div class="plan-item-icon">🗂</div>
+      <div class="plan-item-body">
+        <div class="plan-item-top"><span class="name">{{ t('nav_records') }}</span><span class="tag">{{ t('open') }}</span></div>
+        <p class="plan-item-sub" style="margin-bottom:0;">{{ t('records_desc') }}</p>
+      </div>
+    </a>
+    <a class="plan-item" href="/patients/{{ patient.token }}/visits" style="text-decoration:none;">
+      <div class="plan-item-icon">📅</div>
+      <div class="plan-item-body">
+        <div class="plan-item-top"><span class="name">{{ t('nav_appointments') }}</span><span class="tag">{{ t('open') }}</span></div>
+        <p class="plan-item-sub" style="margin-bottom:0;">{{ t('appointments_desc') }}</p>
+      </div>
+    </a>
+  </div>
+
+  <script>
+    function filterDashLinks(query) {
+      const q = query.trim().toLowerCase();
+      document.querySelectorAll('#dash-links .plan-item').forEach(function (item) {
+        const text = item.innerText.toLowerCase();
+        item.style.display = !q || text.includes(q) ? 'flex' : 'none';
+      });
+    }
+  </script>
 {% endblock %}

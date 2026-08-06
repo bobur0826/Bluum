@@ -145,7 +145,8 @@ Respond with ONLY valid JSON, no markdown fences:
   "urgency": "emergency" or "urgent" or "routine",
   "specialist": "the type of doctor/specialist they should see, in English (e.g. Cardiologist)",
   "uz": "1-2 sentence explanation of the recommendation, in Uzbek",
-  "ru": "the same explanation in Russian"
+  "ru": "the same explanation in Russian",
+  "en": "the same explanation in English"
 }}
 
 "emergency" = go to the ER now. "urgent" = see a doctor within 1-2 days. "routine" = book a normal \
@@ -165,6 +166,7 @@ def generate_symptom_check(symptoms: str, allergies: str, chronic_conditions: st
             "specialist": data["specialist"],
             "explanation_uz": data["uz"],
             "explanation_ru": data["ru"],
+            "explanation_en": data.get("en", data["uz"]),
         }
     except KeyError as e:
         raise SummaryGenerationError(f"Missing field in AI response: {e}")

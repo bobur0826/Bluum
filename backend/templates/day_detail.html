@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Bluum — {{ day }}{% endblock %}
+{% block content %}
+  <h1 style="margin-bottom:2px;">{{ day.strftime("%A, %-d %b %Y") }}</h1>
+  <p class="subtitle" style="margin-top:0;"><a href="/patients/{{ patient.token }}/habits">← Back to Activity</a></p>
+
+  <div class="card">
+    <h2 style="font-size:15px; margin:0 0 8px;">🔥 Habits checked in</h2>
+    {% if done_habits %}
+      {% for h in done_habits %}<div class="field-row"><span class="field-label">{{ h.name }}</span><span class="field-value">✓ Done</span></div>{% endfor %}
+    {% else %}
+      <p class="subtitle" style="margin:0;">No habits checked in this day.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px; margin:0 0 8px;">🌙 Sleep</h2>
+    {% if sleep %}
+      <div class="field-row"><span class="field-label">{{ sleep.sleep_time or '?' }} → {{ sleep.wake_time or '?' }}</span><span class="field-value">{{ sleep.hours ~ 'h' if sleep.hours else '—' }}</span></div>
+    {% else %}
+      <p class="subtitle" style="margin:0;">Not logged this day.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px; margin:0 0 8px;">📊 Daily activity</h2>
+    {% if daily %}
+      <div class="field-row"><span class="field-label">Steps</span><span class="field-value">{{ daily.steps or 0 }}</span></div>
+      <div class="field-row"><span class="field-label">Active minutes</span><span class="field-value">{{ daily.active_minutes or 0 }}</span></div>
+      <div class="field-row"><span class="field-label">Active calories</span><span class="field-value">{{ daily.active_calories or 0 }}</span></div>
+      <div class="field-row"><span class="field-label">Water</span><span class="field-value">{{ daily.water_cups or 0 }} cups</span></div>
+    {% else %}
+      <p class="subtitle" style="margin:0;">Not logged this day.</p>
+    {% endif %}
+  </div>
+{% endblock %}

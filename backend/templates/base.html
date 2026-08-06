@@ -3,61 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}MedPass{% endblock %}</title>
+  <title>{% block title %}Bluum{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-  <div class="app-shell">
+  {% set is_patient_view = patient and not current_user.is_authenticated %}
+  <div class="app-shell {{ 'patient-mode' if is_patient_view }}">
+    {% if not is_patient_view %}
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <a class="sidebar-logo" href="/"><span class="label">MedPass</span></a>
+        <a class="sidebar-logo" href="/"><span class="label">Bluum</span></a>
         <button type="button" class="collapse-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">«</button>
       </div>
       <nav class="sidebar-nav">
-        {% if patient %}
-          <a href="/patients/{{ patient.token }}/dashboard" class="nav-simple-link {{ 'active' if request.path.endswith('/dashboard') }}">
-            <span class="nav-icon">🏠</span><span class="label">Dashboard</span>
-          </a>
-
-          {% set in_records = '/records' in request.path or '/results' in request.path or '/documents' in request.path or '/medications' in request.path or '/prescriptions' in request.path %}
-          <div class="nav-group {{ 'open' if in_records }}">
-            <div class="nav-parent-row">
-              <a href="/patients/{{ patient.token }}/records" class="nav-parent-link {{ 'active' if in_records }}">
-                <span class="nav-icon">🗂</span><span class="label">My records</span>
-              </a>
-              <button type="button" class="nav-chevron" onclick="this.closest('.nav-group').classList.toggle('open')">›</button>
-            </div>
-            <div class="nav-children">
-              <a href="/patients/{{ patient.token }}/results" class="{{ 'active' if '/results' in request.path }}">Test results</a>
-              <a href="/patients/{{ patient.token }}/documents" class="{{ 'active' if '/documents' in request.path }}">Documents</a>
-              <a href="/patients/{{ patient.token }}/medications" class="{{ 'active' if '/medications' in request.path }}">Medications</a>
-              <a href="/patients/{{ patient.token }}/prescriptions" class="{{ 'active' if '/prescriptions' in request.path }}">Prescriptions</a>
-            </div>
-          </div>
-
-          {% set in_visits = '/visits' in request.path or '/history' in request.path or '/appointments' in request.path %}
-          <div class="nav-group {{ 'open' if in_visits }}">
-            <div class="nav-parent-row">
-              <a href="/patients/{{ patient.token }}/visits" class="nav-parent-link {{ 'active' if in_visits }}">
-                <span class="nav-icon">📅</span><span class="label">Appointments</span>
-              </a>
-              <button type="button" class="nav-chevron" onclick="this.closest('.nav-group').classList.toggle('open')">›</button>
-            </div>
-            <div class="nav-children">
-              <a href="/patients/{{ patient.token }}/history" class="{{ 'active' if '/history' in request.path }}">Appointment history</a>
-              <a href="/patients/{{ patient.token }}/appointments" class="{{ 'active' if request.path.endswith('/appointments') }}">Book appointment</a>
-              <a href="/patients/{{ patient.token }}/appointments/prepare" class="{{ 'active' if '/prepare' in request.path }}">Prepare for visit</a>
-            </div>
-          </div>
-
-          <a href="/patients/{{ patient.token }}/symptom-checker" class="nav-simple-link {{ 'active' if '/symptom-checker' in request.path }}">
-            <span class="nav-icon">🩺</span><span class="label">Ask MedPass</span>
-          </a>
-          <a href="/patients/{{ patient.token }}/profile" class="nav-simple-link {{ 'active' if '/profile' in request.path }}">
-            <span class="nav-icon">👤</span><span class="label">Profile</span>
-          </a>
-        {% elif current_user.is_authenticated %}
+        {% if current_user.is_authenticated %}
           <a href="/staff" class="nav-simple-link {{ 'active' if request.path == '/staff' }}">
             <span class="nav-icon">🔍</span><span class="label">Look up patient</span>
           </a>
@@ -83,14 +43,19 @@
         <a class="sidebar-logout" href="/staff/logout"><span class="nav-icon">🚪</span><span class="label">Log out</span></a>
       {% endif %}
     </aside>
+    {% endif %}
 
     <div class="main-area">
       <header class="topbar">
-        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        {% if is_patient_view %}
+          <a class="topbar-logo" href="/patients/{{ patient.token }}/dashboard">Bluum</a>
+        {% else %}
+          <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        {% endif %}
         <div class="lang-pills">
-          <span class="active">EN</span>
-          <span>UZ</span>
-          <span>RU</span>
+          <a href="/set-lang/en" class="{{ 'active' if current_lang == 'en' }}">EN</a>
+          <a href="/set-lang/uz" class="{{ 'active' if current_lang == 'uz' }}">UZ</a>
+          <a href="/set-lang/ru" class="{{ 'active' if current_lang == 'ru' }}">RU</a>
         </div>
         <div class="topbar-right">
           {% if current_user.is_authenticated or patient %}
@@ -120,6 +85,21 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+
+    {% if is_patient_view %}
+    <nav class="bottom-nav">
+      <a href="/patients/{{ patient.token }}/dashboard" class="bottom-nav-item {{ 'active' if request.path.endswith('/dashboard') }}">
+        <span class="icon">🏠</span><span>{{ t('nav_home') }}</span>
+      </a>
+      <a href="/patients/{{ patient.token }}/habits" class="bottom-nav-item {{ 'active' if '/habits' in request.path or '/sleep' in request.path }}">
+        <span class="icon">📈</span><span>{{ t('nav_activity') }}</span>
+      </a>
+      <a href="/patients/{{ patient.token }}/symptom-checker" class="bottom-nav-center" title="Ask Bluum">🩺</a>
+      <a href="/patients/{{ patient.token }}/profile" class="bottom-nav-item {{ 'active' if '/profile' in request.path }}">
+        <span class="icon">👤</span><span>{{ t('nav_profile') }}</span>
+      </a>
+    </nav>
+    {% endif %}
   </div>
 </body>
 </html>

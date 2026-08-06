@@ -26,17 +26,23 @@ from models import (
     Appointment,
     AppointmentSummary,
     CheckIn,
+    DailyLog,
     Document,
+    Habit,
+    HabitCheckIn,
     Medication,
     Patient,
     Prescription,
+    SleepLog,
     Staff,
     StaffNote,
     TestResult,
     db,
 )
+from share_card import generate_streak_card
 from sms import send_sms
 from symptom_model import predict_diseases
+from translations import t as translate
 from uploads import save_upload, upload_path
 
 
@@ -51,7 +57,7 @@ def create_app():
     app.config["SECRET_KEY"] = secret_key
 
     # Falls back to local SQLite for dev; set DATABASE_URL (e.g. postgresql://...) in production.
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///medpass.db")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///bluum.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # Cookies only over HTTPS once actually deployed (FLASK_DEBUG=0); allows plain HTTP for local dev.
@@ -71,6 +77,17 @@ def create_app():
 
     def get_patient_or_404(token):
         return Patient.query.filter_by(token=token).first_or_404()
+
+    @app.context_processor
+    def inject_lang():
+        lang = session.get("lang", "en")
+        return {"current_lang": lang, "t": lambda key: translate(key, lang)}
+
+    @app.get("/set-lang/<lang>")
+    def set_lang(lang):
+        if lang in ("en", "uz", "ru"):
+            session["lang"] = lang
+        return redirect(request.referrer or url_for("home"))
 
     @app.context_processor
     def inject_notifications():
@@ -120,13 +137,17 @@ def create_app():
         return render_template("home.html")
 
     @app.get("/patient/new")
+    def patient_onboarding():
+        return render_template("onboarding.html")
+
+    @app.get("/patient/new/form")
     def patient_form():
         return render_template("patient_form.html")
 
     def _send_otp_and_redirect(patient, next_mode):
         code = patient.generate_otp()
         db.session.commit()
-        sent = send_sms(patient.phone, f"Your MedPass verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes.")
+        sent = send_sms(patient.phone, f"Your Bluum verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes.")
         # If SMS isn't configured (no Eskiz creds), show the code directly so the flow
         # stays testable/demoable without real SMS delivery.
         dev_code = None if sent else code
@@ -216,17 +237,51 @@ def create_app():
     @app.get("/patients/<token>/dashboard")
     def patient_dashboard(token):
         patient = get_patient_or_404(token)
-        return render_template("patient_dashboard.html", patient=patient)
+        habits = Habit.query.filter_by(patient_token=token, active=True).order_by(Habit.created_at).all()
+        sleep_streak = SleepLog.current_streak_for(token)
+        today_log = DailyLog.today_for(token)
+
+        hour = datetime.now().hour
+        greeting = "good_morning" if hour < 12 else "good_afternoon" if hour < 18 else "good_evening"
+
+        plan = [
+            {
+                "label": "steps", "icon": "👟", "value": today_log.steps if today_log and today_log.steps else 0,
+                "target": DailyLog.STEPS_TARGET, "unit": "steps", "tag": "today",
+            },
+            {
+                "label": "water", "icon": "💧", "value": today_log.water_cups if today_log and today_log.water_cups else 0,
+                "target": DailyLog.WATER_TARGET, "unit": "cups", "tag": "today",
+            },
+            {
+                "label": "active_minutes", "icon": "⏱", "value": today_log.active_minutes if today_log and today_log.active_minutes else 0,
+                "target": DailyLog.ACTIVE_MINUTES_TARGET, "unit": "min", "tag": "today",
+            },
+        ]
+        for p in plan:
+            p["pct"] = min(round(p["value"] / p["target"] * 100), 100) if p["target"] else 0
+
+        return render_template(
+            "patient_dashboard.html", patient=patient, habits=habits, sleep_streak=sleep_streak,
+            greeting=greeting, plan=plan,
+        )
 
     @app.get("/patients/<token>/records")
     def records_hub(token):
         patient = get_patient_or_404(token)
-        return render_template("records_hub.html", patient=patient)
+        medications = Medication.query.filter_by(patient_token=token, active=True).order_by(Medication.created_at).all()
+        prescriptions = Prescription.query.filter_by(patient_token=token).order_by(Prescription.created_at.desc()).all()
+        results = TestResult.query.filter_by(patient_token=token).order_by(TestResult.uploaded_at.desc()).all()
+        documents = Document.query.filter_by(patient_token=token).order_by(Document.uploaded_at.desc()).all()
+        return render_template(
+            "records_hub.html", patient=patient, medications=medications, prescriptions=prescriptions,
+            results=results, documents=documents,
+        )
 
     @app.get("/patients/<token>/visits")
     def visits_hub(token):
         patient = get_patient_or_404(token)
-        return render_template("visits_hub.html", patient=patient)
+        return render_template("visits_hub.html", patient=patient, **_visits_hub_context(token))
 
     @app.get("/patients/<token>/history")
     def patient_history(token):
@@ -243,7 +298,13 @@ def create_app():
     def profile_overview(token):
         patient = get_patient_or_404(token)
         field, question = patient.next_progressive_question()
-        return render_template("profile_overview.html", patient=patient, next_question=question)
+        habits = Habit.query.filter_by(patient_token=token, active=True).order_by(Habit.created_at).all()
+        sleep_streak = SleepLog.current_streak_for(token)
+        total_streak_days = sum(h.current_streak() for h in habits) + sleep_streak
+        return render_template(
+            "profile_overview.html", patient=patient, next_question=question, habits=habits,
+            sleep_streak=sleep_streak, total_streak_days=total_streak_days,
+        )
 
     @app.get("/patients/<token>/profile/next-question")
     def profile_next_question(token):
@@ -380,7 +441,7 @@ def create_app():
         summary.status = "approved"
         db.session.commit()
         patient = get_patient_or_404(token)
-        send_sms(patient.phone, "MedPass: your visit summary is ready. Open the app to see what your doctor said.")
+        send_sms(patient.phone, "Bluum: your visit summary is ready. Open the app to see what your doctor said.")
         return redirect(url_for("reception_view", token=token))
 
     @app.get("/patients/<token>/summary/<int:summary_id>")
@@ -480,14 +541,161 @@ def create_app():
             )
         )
         db.session.commit()
-        return redirect(url_for("list_medications", token=token))
+        return redirect(url_for("records_hub", token=token))
 
     @app.post("/patients/<token>/medications/<int:med_id>/delete")
     def delete_medication(token, med_id):
         med = Medication.query.filter_by(id=med_id, patient_token=token).first_or_404()
         med.active = False
         db.session.commit()
-        return redirect(url_for("list_medications", token=token))
+        return redirect(url_for("records_hub", token=token))
+
+    # ---------------------------------------------------------------- habit streaks
+
+    @app.get("/patients/<token>/habits")
+    def list_habits(token):
+        patient = get_patient_or_404(token)
+        habits = Habit.query.filter_by(patient_token=token, active=True).order_by(Habit.created_at).all()
+
+        # Aggregate week strip: a day counts as "active" if any habit or sleep was logged.
+        habit_days = {c.checkin_date for h in habits for c in h.checkins}
+        sleep_days = {r.log_date for r in SleepLog.query.filter_by(patient_token=token).all()}
+        active_days = habit_days | sleep_days
+        today = date.today()
+        week = [
+            {"date": d, "dow": d.strftime("%a")[0], "day": d.day, "hit": d in active_days, "today": d == today}
+            for d in (today - timedelta(days=i) for i in range(6, -1, -1))
+        ]
+
+        sleep_streak = SleepLog.current_streak_for(token)
+        habit_streaks_list = [h.current_streak() for h in habits]
+        best_habit_streak = max(habit_streaks_list) if habit_streaks_list else 0
+        best_streak = max(habit_streaks_list + [sleep_streak]) if habit_streaks_list else sleep_streak
+        checked_in_today = sum(1 for h in habits if h.checked_in_today())
+
+        last_sleep = SleepLog.query.filter_by(patient_token=token).order_by(SleepLog.log_date.desc()).first()
+        today_log = DailyLog.today_for(token)
+
+        return render_template(
+            "habits.html", patient=patient, week=week, best_streak=best_streak,
+            checked_in_today=checked_in_today, total_habits=len(habits), sleep_streak=sleep_streak,
+            last_sleep=last_sleep, today_log=today_log, DailyLog=DailyLog, best_habit_streak=best_habit_streak,
+        )
+
+    @app.get("/patients/<token>/day/<day>")
+    def day_detail(token, day):
+        patient = get_patient_or_404(token)
+        try:
+            d = date.fromisoformat(day)
+        except ValueError:
+            abort(404)
+        habits = Habit.query.filter_by(patient_token=token, active=True).all()
+        done_habits = [h for h in habits if any(c.checkin_date == d for c in h.checkins)]
+        sleep = SleepLog.query.filter_by(patient_token=token, log_date=d).first()
+        daily = DailyLog.query.filter_by(patient_token=token, log_date=d).first()
+        return render_template(
+            "day_detail.html", patient=patient, day=d, done_habits=done_habits, sleep=sleep, daily=daily
+        )
+
+    @app.post("/patients/<token>/daily-log")
+    def log_daily_activity(token):
+        get_patient_or_404(token)
+
+        def _int(name):
+            val = request.form.get(name, "").strip()
+            return int(val) if val.isdigit() else None
+
+        today_log = DailyLog.today_for(token)
+        if not today_log:
+            today_log = DailyLog(patient_token=token)
+            db.session.add(today_log)
+        for field in ("steps", "active_calories", "active_minutes", "water_cups"):
+            value = _int(field)
+            if value is not None:
+                setattr(today_log, field, value)
+        db.session.commit()
+        return redirect(url_for("list_habits", token=token))
+
+    @app.get("/patients/<token>/habits/streaks")
+    def habit_streaks(token):
+        patient = get_patient_or_404(token)
+        habits = Habit.query.filter_by(patient_token=token, active=True).order_by(Habit.created_at).all()
+        return render_template("habit_streaks.html", patient=patient, habits=habits)
+
+    @app.post("/patients/<token>/habits")
+    def add_habit(token):
+        patient = get_patient_or_404(token)
+        name = request.form.get("name", "").strip()
+        if not name:
+            abort(400, "name is required")
+        db.session.add(Habit(patient_token=token, name=name, kind=request.form.get("kind", "custom")))
+        db.session.commit()
+        return redirect(url_for("habit_streaks", token=token))
+
+    @app.post("/patients/<token>/habits/<int:habit_id>/checkin")
+    def checkin_habit(token, habit_id):
+        habit = Habit.query.filter_by(id=habit_id, patient_token=token).first_or_404()
+        if not habit.checked_in_today():
+            db.session.add(HabitCheckIn(habit_id=habit.id))
+            db.session.commit()
+        return redirect(url_for("habit_streaks", token=token))
+
+    @app.post("/patients/<token>/habits/<int:habit_id>/delete")
+    def delete_habit(token, habit_id):
+        habit = Habit.query.filter_by(id=habit_id, patient_token=token).first_or_404()
+        habit.active = False
+        db.session.commit()
+        return redirect(url_for("habit_streaks", token=token))
+
+    @app.get("/patients/<token>/habits/<int:habit_id>/card.png")
+    def habit_share_card(token, habit_id):
+        habit = Habit.query.filter_by(id=habit_id, patient_token=token).first_or_404()
+        buf = generate_streak_card(habit.name, habit.current_streak(), subtitle="on Bluum")
+        return send_file(buf, mimetype="image/png")
+
+    # ---------------------------------------------------------------- sleep streaks
+
+    @app.get("/patients/<token>/sleep")
+    def sleep_log(token):
+        patient = get_patient_or_404(token)
+        logs = SleepLog.query.filter_by(patient_token=token).order_by(SleepLog.log_date.desc()).limit(14).all()
+        streak = SleepLog.current_streak_for(token)
+        logged_today = any(l.log_date == date.today() for l in logs)
+        week = SleepLog.week_strip_for(token)
+        return render_template(
+            "sleep.html", patient=patient, logs=logs, streak=streak, logged_today=logged_today, week=week
+        )
+
+    @app.post("/patients/<token>/sleep")
+    def add_sleep_log(token):
+        get_patient_or_404(token)
+        sleep_time = request.form.get("sleep_time") or None
+        wake_time = request.form.get("wake_time") or None
+        hours = None
+        if sleep_time and wake_time:
+            try:
+                s_h, s_m = (int(x) for x in sleep_time.split(":"))
+                w_h, w_m = (int(x) for x in wake_time.split(":"))
+                mins = (w_h * 60 + w_m) - (s_h * 60 + s_m)
+                if mins <= 0:
+                    mins += 24 * 60
+                hours = round(mins / 60, 1)
+            except ValueError:
+                hours = None
+        existing = SleepLog.query.filter_by(patient_token=token, log_date=date.today()).first()
+        if existing:
+            existing.sleep_time, existing.wake_time, existing.hours = sleep_time, wake_time, hours
+        else:
+            db.session.add(SleepLog(patient_token=token, sleep_time=sleep_time, wake_time=wake_time, hours=hours))
+        db.session.commit()
+        return redirect(url_for("list_habits", token=token))
+
+    @app.get("/patients/<token>/sleep/card.png")
+    def sleep_share_card(token):
+        get_patient_or_404(token)
+        streak = SleepLog.current_streak_for(token)
+        buf = generate_streak_card("Sleep schedule", streak, subtitle="on Bluum")
+        return send_file(buf, mimetype="image/png")
 
     # ---------------------------------------------------------------- document storage
 
@@ -507,7 +715,7 @@ def create_app():
         filename, original = save_upload(file, token)
         db.session.add(Document(patient_token=token, category=category, filename=filename, original_filename=original))
         db.session.commit()
-        return redirect(url_for("list_documents", token=token))
+        return redirect(url_for("records_hub", token=token))
 
     @app.get("/patients/<token>/documents/<int:doc_id>/download")
     def download_document(token, doc_id):
@@ -516,10 +724,23 @@ def create_app():
 
     # ---------------------------------------------------------------- symptom checker
 
+    EXAMPLE_SYMPTOM_QUESTIONS = [
+        "I have a headache and a slight fever",
+        "My stomach hurts after eating",
+        "I've had a persistent cough for a week",
+        "Sharp pain in my lower back",
+    ]
+
+    def _chat_key(token):
+        return f"symptom_chat_{token}"
+
     @app.get("/patients/<token>/symptom-checker")
     def symptom_checker_form(token):
         patient = get_patient_or_404(token)
-        return render_template("symptom_checker.html", patient=patient)
+        chat = session.get(_chat_key(token), [])
+        return render_template(
+            "symptom_checker.html", patient=patient, chat=chat, examples=EXAMPLE_SYMPTOM_QUESTIONS
+        )
 
     @app.post("/patients/<token>/symptom-checker")
     def symptom_checker_submit(token):
@@ -527,21 +748,39 @@ def create_app():
         symptoms = request.form.get("symptoms", "").strip()
         if not symptoms:
             abort(400, "symptoms is required")
+
+        chat = session.get(_chat_key(token), [])
+        chat.append({"role": "user", "text": symptoms})
         try:
             result = generate_symptom_check(symptoms, patient.allergies, patient.chronic_conditions)
+            predictions = predict_diseases(symptoms)
+            chat.append({
+                "role": "bot", "urgency": result["urgency"], "specialist": result["specialist"],
+                "explanation_uz": result["explanation_uz"], "explanation_ru": result["explanation_ru"],
+                "explanation_en": result["explanation_en"], "predictions": predictions,
+            })
         except SummaryGenerationError as e:
-            return render_template("symptom_checker.html", patient=patient, error=str(e), symptoms=symptoms), 502
-        predictions = predict_diseases(symptoms)
-        return render_template(
-            "symptom_checker.html", patient=patient, result=result, symptoms=symptoms, predictions=predictions
-        )
+            chat.append({"role": "bot", "error": str(e)})
+        session[_chat_key(token)] = chat
+        return redirect(url_for("symptom_checker_form", token=token))
+
+    @app.post("/patients/<token>/symptom-checker/clear")
+    def symptom_checker_clear(token):
+        session.pop(_chat_key(token), None)
+        return redirect(url_for("symptom_checker_form", token=token))
 
     # ---------------------------------------------------------------- appointment prep
 
     @app.get("/patients/<token>/appointments/prepare")
     def prep_form(token):
-        patient = get_patient_or_404(token)
-        return render_template("prep_questions.html", patient=patient)
+        return redirect(url_for("visits_hub", token=token))
+
+    def _visits_hub_context(token):
+        appointments = Appointment.query.filter_by(patient_token=token).order_by(Appointment.requested_at).all()
+        summaries = AppointmentSummary.query.filter_by(patient_token=token, status="approved").order_by(
+            AppointmentSummary.created_at.desc()
+        ).all()
+        return {"appointments": appointments, "summaries": summaries}
 
     @app.post("/patients/<token>/appointments/prepare")
     def prep_submit(token):
@@ -552,11 +791,14 @@ def create_app():
         try:
             ai = generate_prep_questions(reason, patient.chronic_conditions, patient.current_medications)
         except SummaryGenerationError as e:
-            return render_template("prep_questions.html", patient=patient, error=str(e), reason=reason), 502
+            return render_template(
+                "visits_hub.html", patient=patient, error=str(e), reason=reason, **_visits_hub_context(token)
+            ), 502
         questions_uz = json.loads(ai["questions_uz"])
         questions_ru = json.loads(ai["questions_ru"])
         return render_template(
-            "prep_questions.html", patient=patient, reason=reason, questions_uz=questions_uz, questions_ru=questions_ru
+            "visits_hub.html", patient=patient, reason=reason, questions_uz=questions_uz, questions_ru=questions_ru,
+            **_visits_hub_context(token)
         )
 
     # ---------------------------------------------------------------- appointment booking
@@ -582,7 +824,7 @@ def create_app():
             )
         )
         db.session.commit()
-        return redirect(url_for("list_appointments", token=token))
+        return redirect(url_for("visits_hub", token=token))
 
     @app.get("/hospital/appointments")
     @login_required
@@ -722,7 +964,7 @@ def create_app():
                 patient = Patient.query.filter_by(token=med.patient_token).first()
                 if not patient:
                     continue
-                send_sms(patient.phone, f"MedPass: time to take {med.name} ({med.dosage or 'as prescribed'}).")
+                send_sms(patient.phone, f"Bluum: time to take {med.name} ({med.dosage or 'as prescribed'}).")
                 med.last_reminder_sent = now
             db.session.commit()
 
@@ -734,7 +976,7 @@ def create_app():
                 patient = Patient.query.filter_by(token=summary.patient_token).first()
                 if not patient:
                     continue
-                send_sms(patient.phone, "MedPass: reminder — you have a follow-up appointment tomorrow.")
+                send_sms(patient.phone, "Bluum: reminder — you have a follow-up appointment tomorrow.")
                 summary.follow_up_sms_sent = True
             db.session.commit()
 

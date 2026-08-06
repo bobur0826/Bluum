@@ -1,27 +1,25 @@
-{% extends "base.html" %}
-{% block title %}MedPass — Enter Code{% endblock %}
+{% extends "auth_shell.html" %}
+{% block title %}Bluum — Enter Code{% endblock %}
 {% block content %}
-  <div class="card">
-    <h1>Enter the code</h1>
-    <p class="subtitle">We sent a 6-digit code by SMS to {{ phone }}.</p>
+  <h1>Enter the code</h1>
+  <p class="subtitle">We sent a 6-digit code by SMS to {{ phone }}.</p>
 
-    {% if dev_code %}
-      <p style="color:var(--accent); font-size:14px;">SMS isn't configured yet — for testing, your code is <strong>{{ dev_code }}</strong>.</p>
-    {% endif %}
-    {% if error %}<p style="color:var(--danger); font-size:14px;">{{ error }}</p>{% endif %}
+  {% if dev_code %}
+    <p style="color:var(--accent); font-size:14px;">SMS isn't configured yet — for testing, your code is <strong>{{ dev_code }}</strong>.</p>
+  {% endif %}
+  {% if error %}<p style="color:var(--danger); font-size:14px;">{{ error }}</p>{% endif %}
 
-    <form method="post" action="/patient/verify">
-      <input type="hidden" name="phone" value="{{ phone }}">
-      <input type="hidden" name="next" value="{{ next_mode }}">
-      <label class="required">6-digit code</label>
-      <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus>
-      <button type="submit">Verify</button>
-    </form>
+  <form method="post" action="/patient/verify">
+    <input type="hidden" name="phone" value="{{ phone }}">
+    <input type="hidden" name="next" value="{{ next_mode }}">
+    <label class="required">6-digit code</label>
+    <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus>
+    <button type="submit">Verify</button>
+  </form>
 
-    <form method="post" action="/patient/verify/resend">
-      <input type="hidden" name="phone" value="{{ phone }}">
-      <input type="hidden" name="next" value="{{ next_mode }}">
-      <button type="submit" class="button-secondary" style="margin-top:12px;">Resend code</button>
-    </form>
-  </div>
+  <form method="post" action="/patient/verify/resend">
+    <input type="hidden" name="phone" value="{{ phone }}">
+    <input type="hidden" name="next" value="{{ next_mode }}">
+    <button type="submit" class="button-secondary" style="margin-top:12px;">Resend code</button>
+  </form>
 {% endblock %}

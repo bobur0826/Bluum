@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Bluum — Habit Streaks{% endblock %}
+{% block content %}
+  <h1 style="margin-bottom:2px;">Habits &amp; streaks</h1>
+  <p class="subtitle" style="margin-top:0;">Quit something, build something — one check-in a day.</p>
+
+  {% if not habits %}
+    <div class="card"><p class="subtitle">No habits tracked yet. Add one below.</p></div>
+  {% endif %}
+
+  {% for h in habits %}
+    {% set streak = h.current_streak() %}
+    <div class="streak-card">
+      <div class="streak-card-top">
+        <div>
+          <div class="streak-hero-num">
+            <span class="fire">🔥</span>{{ streak }}<span class="unit">day{{ '' if streak == 1 else 's' }}</span>
+          </div>
+          <p class="streak-name">{{ h.name }}</p>
+        </div>
+        <div class="streak-actions">
+          {% if not h.checked_in_today() %}
+            <form method="post" action="/patients/{{ patient.token }}/habits/{{ h.id }}/checkin">
+              <button type="submit" class="streak-btn checkin">Check in</button>
+            </form>
+          {% else %}
+            <span class="streak-btn done">✓ Done</span>
+          {% endif %}
+          <a href="/patients/{{ patient.token }}/habits/{{ h.id }}/card.png" target="_blank" class="streak-btn share">Share</a>
+          <form method="post" action="/patients/{{ patient.token }}/habits/{{ h.id }}/delete">
+            <button type="submit" class="streak-btn stop">Stop</button>
+          </form>
+        </div>
+      </div>
+      <div class="week-strip">
+        {% for d in h.week_strip() %}
+          <div class="week-day {{ 'hit' if d.hit }} {{ 'today' if d.today }}">
+            <span class="dow">{{ d.dow }}</span>
+            <span class="dot">{{ '✓' if d.hit else '' }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="card" style="margin-top:8px;">
+    <form method="post" action="/patients/{{ patient.token }}/habits">
+      <label class="required">What are you quitting or building?</label>
+      <input type="text" name="name" required placeholder="e.g. Quit smoking">
+      <label>Type</label>
+      <select name="kind">
+        <option value="smoking">Smoking</option>
+        <option value="alcohol">Alcohol</option>
+        <option value="custom" selected>Custom</option>
+      </select>
+      <button type="submit">Start streak</button>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Bluum — Activity{% endblock %}
+{% block content %}
+  <h1 style="margin-bottom:2px;">{{ t('activity_title') }}</h1>
+  <p class="subtitle" style="margin-top:0;">{{ t('activity_sub') }}</p>
+
+  <a href="/patients/{{ patient.token }}/habits/streaks" class="streak-card" style="display:block; text-decoration:none; margin-bottom:20px;">
+    <div class="streak-card-top">
+      <div>
+        <div class="streak-hero-num">
+          <span class="fire">🔥</span>{{ best_habit_streak }}<span class="unit">{{ t('day_streak') }}</span>
+        </div>
+        <p class="streak-name">{{ total_habits }} {{ t('habits_tracked') }} — {{ t('manage_streaks') }}</p>
+      </div>
+      <span class="streak-btn share">{{ t('open') }} ›</span>
+    </div>
+  </a>
+
+  <div class="activity-week">
+    {% for d in week %}
+      <a class="activity-day {{ 'hit' if d.hit }} {{ 'today' if d.today }}" href="/patients/{{ patient.token }}/day/{{ d.date }}">
+        <span class="dow">{{ d.dow }}</span>
+        <span class="num">{{ d.day }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  <h2 style="font-size:15px; margin:0 0 8px;">{{ t('today_report') }}</h2>
+  <div class="report-grid">
+
+    <div class="report-card tint-yellow">
+      <p class="r-label">🔥 {{ t('active_calories') }}</p>
+      <p class="r-value">{{ today_log.active_calories if today_log and today_log.active_calories else "—" }}</p>
+      <p class="r-sub">{{ t('cal_today') }}</p>
+    </div>
+
+    <div class="report-card tint-purple">
+      <p class="r-label">⏱ {{ t('training_time') }}</p>
+      <div class="donut-wrap">
+        {% set pct = ((today_log.active_minutes if today_log and today_log.active_minutes else 0) / DailyLog.ACTIVE_MINUTES_TARGET * 100) | round | int %}
+        <div class="donut" style="--pct: {{ [pct, 100] | min }};">{{ [pct, 100] | min }}%</div>
+      </div>
+    </div>
+
+    <div class="report-card tint-red connect-card">
+      <p class="r-label">❤️ {{ t('heart_rate') }}</p>
+      <p class="r-value" style="font-size:18px;">{{ t('not_connected') }}</p>
+      <p class="cta">{{ t('connect_device') }}</p>
+    </div>
+
+    <div class="report-card tint-yellow">
+      <p class="r-label">👟 {{ t('steps') }}</p>
+      <p class="r-value" style="font-size:20px;">{{ (today_log.steps if today_log and today_log.steps else 0) }}/{{ DailyLog.STEPS_TARGET }}</p>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ [(((today_log.steps if today_log and today_log.steps else 0) / DailyLog.STEPS_TARGET) * 100) | round | int, 100] | min }}%;"></div></div>
+    </div>
+
+    <div class="report-card tint-green">
+      <p class="r-label">💪 {{ t('motivation') }}</p>
+      <p class="r-value" style="font-size:18px;">{{ t('keep_it_up') if checked_in_today > 0 or (today_log and (today_log.steps or today_log.water_cups)) else t('lets_start') }}</p>
+    </div>
+
+    <div class="report-card tint-purple">
+      <p class="r-label">🌙 {{ t('sleep') }}</p>
+      <p class="r-value" style="font-size:20px;">{{ (last_sleep.hours ~ "h") if last_sleep and last_sleep.hours else "—" }}</p>
+      <p class="r-sub">{{ sleep_streak }}-{{ t('day_streak') }}</p>
+    </div>
+
+    <div class="report-card tint-blue">
+      <p class="r-label">💧 {{ t('water') }}</p>
+      <p class="r-value" style="font-size:20px;">{{ (today_log.water_cups if today_log and today_log.water_cups else 0) }}/{{ DailyLog.WATER_TARGET }}</p>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ [(((today_log.water_cups if today_log and today_log.water_cups else 0) / DailyLog.WATER_TARGET) * 100) | round | int, 100] | min }}%;"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px; margin:0 0 8px;">{{ t('log_activity_title') }}</h2>
+    <form method="post" action="/patients/{{ patient.token }}/daily-log">
+      <div class="quick-log-grid">
+        <div><label>{{ t('steps') }}</label><input type="number" name="steps" min="0" placeholder="e.g. 6500" value="{{ today_log.steps if today_log else '' }}"></div>
+        <div><label>{{ t('active_minutes') }}</label><input type="number" name="active_minutes" min="0" placeholder="e.g. 25" value="{{ today_log.active_minutes if today_log else '' }}"></div>
+        <div><label>{{ t('active_calories') }}</label><input type="number" name="active_calories" min="0" placeholder="e.g. 400" value="{{ today_log.active_calories if today_log else '' }}"></div>
+        <div><label>{{ t('water') }}</label><input type="number" name="water_cups" min="0" placeholder="e.g. 5" value="{{ today_log.water_cups if today_log else '' }}"></div>
+      </div>
+      <button type="submit">Save</button>
+    </form>
+
+    <h2 style="font-size:15px; margin:20px 0 8px;">Log tonight's sleep</h2>
+    <form method="post" action="/patients/{{ patient.token }}/sleep">
+      <div class="quick-log-grid">
+        <div><label>Slept at</label><input type="time" name="sleep_time"></div>
+        <div><label>Woke up at</label><input type="time" name="wake_time"></div>
+      </div>
+      <button type="submit">Save</button>
+    </form>
+  </div>
+{% endblock %}

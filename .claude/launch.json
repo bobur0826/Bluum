@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bluum-backend",
+      "runtimeExecutable": "backend/.venv/bin/python3",
+      "runtimeArgs": ["backend/app.py"],
+      "port": 5000
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-# MedPass — The Patient Intelligence Platform for Central Asia
+# Bluum — The Patient Intelligence Platform for Central Asia
 
 A personal medical passport patients fill in once — every hospital visit after that is
 auto-filled via QR scan, explained in plain language by AI, and remembered. Phase 1 (MVP) and
@@ -32,7 +32,7 @@ cp .env.example .env   # then fill in OPENAI_API_KEY (see below)
 python app.py
 ```
 
-Opens on `http://localhost:5001`. The SQLite database (`backend/instance/medpass.db`) and any
+Opens on `http://localhost:5001`. The SQLite database (`backend/instance/bluum.db`) and any
 uploaded files (`backend/uploads/`) are created automatically on first run.
 
 ### Production deployment
@@ -42,7 +42,7 @@ uploaded files (`backend/uploads/`) are created automatically on first run.
 ```bash
 export FLASK_DEBUG=0
 export SECRET_KEY=...        # required - see .env.example for how to generate one
-export DATABASE_URL=postgresql://user:pass@host:5432/medpass
+export DATABASE_URL=postgresql://user:pass@host:5432/bluum
 gunicorn -w 4 -b 0.0.0.0:5001 app:app
 ```
 
@@ -63,7 +63,7 @@ contributors.
 ### Project structure
 
 ```
-MedPass/
+Bluum/
 ├── README.md
 └── backend/
     ├── app.py              # all Flask routes
@@ -178,7 +178,7 @@ Four sections, reachable from the sidebar or the dashboard hub:
   and everything a doctor has ever prescribed you.
 - **Appointments** — your visit history, booking a new appointment by department, and "prepare
   for a visit" (describe why you're going, get AI-suggested questions to ask).
-- **Ask MedPass** — describe symptoms, get an urgency level (routine / urgent / emergency) and
+- **Ask Bluum** — describe symptoms, get an urgency level (routine / urgent / emergency) and
   which type of specialist to see. This is triage guidance, not a diagnosis.
 - **Profile** — your full medical profile in one place. If you haven't finished answering the
   progressive questions yet, the next one is prompted right at the top.
@@ -213,7 +213,7 @@ contact — all auto-filled, nothing to type).
 ### Writing up a visit
 
 From a patient's page: **Add appointment notes** → type up what happened in the consultation
-(plain clinical shorthand is fine) → MedPass generates a plain-language explanation in Uzbek and
+(plain clinical shorthand is fine) → Bluum generates a plain-language explanation in Uzbek and
 Russian automatically.
 
 **This does not go to the patient yet.** You land on a **review** screen first — check it, then
@@ -222,7 +222,7 @@ their SMS/notification fire). If something's off, discard and rewrite the notes 
 
 ### Prescriptions
 
-**Write prescription** on a patient's page → drug name, dosage, duration, instructions. MedPass
+**Write prescription** on a patient's page → drug name, dosage, duration, instructions. Bluum
 automatically cross-checks the new drug against the patient's known allergies and current
 medications and flags a warning if there's a real conflict.
 

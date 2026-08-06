@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}MedPass — Your QR Code{% endblock %}
+{% block title %}Bluum — Your QR Code{% endblock %}
 {% block content %}
   <div class="card qr-wrap" id="id-card">
     <span class="badge no-print">Profile saved</span>
     <h1>You're all set, {{ patient.full_name.split(" ")[0] }}</h1>
     <p class="subtitle no-print">Show this QR code at reception. All your paperwork will be filled in automatically.</p>
-    <img src="/patients/{{ patient.token }}/qr.png" alt="Your MedPass QR code">
+    <img src="/patients/{{ patient.token }}/qr.png" alt="Your Bluum QR code">
     <p style="font-weight:600; margin:12px 0 0;">{{ patient.full_name }}</p>
     <p class="subtitle" style="margin:2px 0 0;">DOB {{ patient.dob }} · {{ patient.phone }}</p>
     <p class="subtitle no-print">Save a screenshot, or print a card to carry as backup.</p>
