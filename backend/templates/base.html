@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Bluum{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    (function () {
+      var saved = localStorage.getItem('bluum-theme');
+      var tg = window.Telegram && window.Telegram.WebApp;
+      // Inside Telegram, default to whatever theme the user already has Telegram set
+      // to, unless they've explicitly picked a Bluum theme before (saved wins).
+      var theme = saved || (tg && tg.colorScheme) || null;
+      if (theme) document.documentElement.setAttribute('data-theme', theme);
+      if (tg) {
+        tg.ready();
+        tg.expand();
+      }
+    })();
+  </script>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -58,6 +73,7 @@
           <a href="/set-lang/ru" class="{{ 'active' if current_lang == 'ru' }}">RU</a>
         </div>
         <div class="topbar-right">
+          <button type="button" class="icon-button theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
           {% if current_user.is_authenticated or patient %}
             <div class="notif-wrap">
               <button type="button" class="icon-button" onclick="document.getElementById('notif-dropdown').classList.toggle('open')">
@@ -101,5 +117,19 @@
     </nav>
     {% endif %}
   </div>
+  <script>
+    function syncThemeIcon() {
+      var btn = document.querySelector('.theme-toggle');
+      if (btn) btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+    }
+    function toggleTheme() {
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      var next = isDark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('bluum-theme', next);
+      syncThemeIcon();
+    }
+    syncThemeIcon();
+  </script>
 </body>
 </html>

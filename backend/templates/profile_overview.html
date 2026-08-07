@@ -4,6 +4,7 @@
   <div class="data-page">
 
     <div class="profile-hero">
+      <img class="profile-mascot" src="/static/img/character.png" alt="">
       <div class="profile-hero-top">
         <div class="profile-qr"><img src="/patients/{{ patient.token }}/qr.png" alt="QR code"></div>
         <div>
@@ -12,8 +13,8 @@
         </div>
       </div>
       <div class="profile-chips">
-        <span class="profile-chip">🎂 {{ patient.dob }}</span>
-        <span class="profile-chip">📱 {{ patient.phone }}</span>
+        <span class="profile-chip">🎂 {{ patient.dob or "—" }}</span>
+        <span class="profile-chip">📱 {{ patient.phone or "—" }}</span>
         <span class="profile-chip">🔥 {{ total_streak_days }} total streak days</span>
       </div>
     </div>

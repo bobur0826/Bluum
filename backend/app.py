@@ -42,6 +42,7 @@ from models import (
 from share_card import generate_streak_card
 from sms import send_sms
 from symptom_model import predict_diseases
+from telegram_auth import verify_init_data
 from translations import t as translate
 from uploads import save_upload, upload_path
 
@@ -55,6 +56,10 @@ def create_app():
             raise RuntimeError("SECRET_KEY must be set in production (see .env.example)")
         secret_key = "dev-secret-change-me"  # local dev only, never used when FLASK_DEBUG=0
     app.config["SECRET_KEY"] = secret_key
+
+    # Bot token from @BotFather - required for /telegram/auth to verify Mini App
+    # launches. Unset is fine outside the Telegram flow (rest of the app works either way).
+    app.config["TELEGRAM_BOT_TOKEN"] = os.environ.get("TELEGRAM_BOT_TOKEN")
 
     # Falls back to local SQLite for dev; set DATABASE_URL (e.g. postgresql://...) in production.
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///bluum.db")
@@ -218,6 +223,47 @@ def create_app():
     def patient_logout():
         session.pop("patient_token", None)
         return redirect(url_for("home"))
+
+    # ---------------------------------------------------------------- Telegram Mini App login
+
+    @app.get("/telegram")
+    def telegram_launch():
+        """Entry point opened by the bot's Web App button. Renders a near-blank page
+        whose only job is to hand Telegram's initData to /telegram/auth and then jump
+        straight to the real dashboard - the user never sees this page render."""
+        return render_template("telegram_launch.html")
+
+    @app.post("/telegram/auth")
+    def telegram_auth_submit():
+        bot_token = app.config.get("TELEGRAM_BOT_TOKEN")
+        if not bot_token:
+            return jsonify(error="Telegram login is not configured on this server"), 503
+
+        init_data = request.form.get("init_data", "")
+        tg_user = verify_init_data(init_data, bot_token)
+        if not tg_user:
+            return jsonify(error="Could not verify Telegram identity"), 401
+
+        telegram_user_id = tg_user.get("id")
+        if not telegram_user_id:
+            return jsonify(error="Malformed Telegram user data"), 400
+
+        patient = Patient.query.filter_by(telegram_user_id=telegram_user_id).first()
+        if not patient:
+            display_name = " ".join(
+                part for part in (tg_user.get("first_name"), tg_user.get("last_name")) if part
+            ).strip() or tg_user.get("username") or "Bluum user"
+            patient = Patient(
+                full_name=display_name,
+                telegram_user_id=telegram_user_id,
+                telegram_username=tg_user.get("username"),
+                phone_verified=True,  # Telegram's own signature is the verification here
+            )
+            db.session.add(patient)
+            db.session.commit()
+
+        session["patient_token"] = patient.token
+        return jsonify(redirect=url_for("patient_dashboard", token=patient.token))
 
     @app.get("/patients/<token>/qr")
     def show_qr(token):
@@ -441,7 +487,8 @@ def create_app():
         summary.status = "approved"
         db.session.commit()
         patient = get_patient_or_404(token)
-        send_sms(patient.phone, "Bluum: your visit summary is ready. Open the app to see what your doctor said.")
+        if patient.phone:
+            send_sms(patient.phone, "Bluum: your visit summary is ready. Open the app to see what your doctor said.")
         return redirect(url_for("reception_view", token=token))
 
     @app.get("/patients/<token>/summary/<int:summary_id>")
@@ -742,6 +789,41 @@ def create_app():
             "symptom_checker.html", patient=patient, chat=chat, examples=EXAMPLE_SYMPTOM_QUESTIONS
         )
 
+    def build_chat_context(patient, token):
+        habits = Habit.query.filter_by(patient_token=token, active=True).all()
+        habit_lines = [f"{h.name} (day {h.current_streak()} of their streak)" for h in habits] or None
+
+        last_sleep = SleepLog.query.filter_by(patient_token=token).order_by(SleepLog.log_date.desc()).first()
+        sleep_text = f"{last_sleep.hours}h last night" if last_sleep and last_sleep.hours else None
+
+        today_log = DailyLog.today_for(token)
+        today_bits = []
+        if today_log:
+            if today_log.steps:
+                today_bits.append(f"{today_log.steps} steps")
+            if today_log.active_calories:
+                today_bits.append(f"{today_log.active_calories} active calories burned")
+            if today_log.water_cups:
+                today_bits.append(f"{today_log.water_cups} cups of water")
+        today_text = ", ".join(today_bits) or None
+
+        rx = Prescription.query.filter_by(patient_token=token).order_by(Prescription.created_at.desc()).limit(5).all()
+        rx_text = "; ".join(f"{r.drug_name} {r.dosage}" for r in rx) or None
+
+        results = TestResult.query.filter_by(patient_token=token).order_by(TestResult.uploaded_at.desc()).limit(3).all()
+        results_text = "; ".join(f"{r.risk_level or 'routine'} result from {r.uploaded_at.strftime('%Y-%m-%d')}" for r in results) or None
+
+        return {
+            "allergies": patient.allergies,
+            "chronic_conditions": patient.chronic_conditions,
+            "current_medications": patient.current_medications,
+            "prescriptions": rx_text,
+            "habits": "; ".join(habit_lines) if habit_lines else None,
+            "last_sleep": sleep_text,
+            "today_activity": today_text,
+            "recent_results": results_text,
+        }
+
     @app.post("/patients/<token>/symptom-checker")
     def symptom_checker_submit(token):
         patient = get_patient_or_404(token)
@@ -757,9 +839,7 @@ def create_app():
         ]
         chat.append({"role": "user", "text": symptoms})
         try:
-            result = generate_chat_reply(
-                symptoms, history, patient.allergies, patient.chronic_conditions, patient.current_medications
-            )
+            result = generate_chat_reply(symptoms, history, build_chat_context(patient, token))
             predictions = predict_diseases(symptoms) if result["is_symptom_report"] else []
             bot_msg = {
                 "role": "bot", "is_symptom_report": result["is_symptom_report"],
@@ -974,7 +1054,7 @@ def create_app():
                 if med.last_reminder_sent and med.last_reminder_sent.strftime("%Y-%m-%d %H:%M") == now.strftime("%Y-%m-%d %H:%M"):
                     continue
                 patient = Patient.query.filter_by(token=med.patient_token).first()
-                if not patient:
+                if not patient or not patient.phone:
                     continue
                 send_sms(patient.phone, f"Bluum: time to take {med.name} ({med.dosage or 'as prescribed'}).")
                 med.last_reminder_sent = now
@@ -986,7 +1066,7 @@ def create_app():
             due = AppointmentSummary.query.filter_by(follow_up_date=tomorrow, follow_up_sms_sent=False).all()
             for summary in due:
                 patient = Patient.query.filter_by(token=summary.patient_token).first()
-                if not patient:
+                if not patient or not patient.phone:
                     continue
                 send_sms(patient.phone, "Bluum: reminder — you have a follow-up appointment tomorrow.")
                 summary.follow_up_sms_sent = True

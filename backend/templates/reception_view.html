@@ -7,7 +7,7 @@
       <div>
         <span class="badge" style="margin-bottom:4px;">Scanned in &lt; 1 second</span>
         <h1>{{ patient.full_name }}</h1>
-        <p class="subtitle" style="margin-bottom:0;">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+        <p class="subtitle" style="margin-bottom:0;">DOB {{ patient.dob or "—" }} · {{ patient.phone or "—" }}</p>
       </div>
     </div>
 

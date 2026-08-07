@@ -21,9 +21,17 @@ class Patient(db.Model):
     token = db.Column(db.String(16), unique=True, nullable=False, default=generate_token)
 
     full_name = db.Column(db.String(120), nullable=False)
-    dob = db.Column(db.String(20), nullable=False)
-    phone = db.Column(db.String(30), nullable=False, unique=True)
+    # Nullable: Telegram-native signups (see telegram_user_id below) don't collect these
+    # up front - phone/dob are optional there and can be filled in later via the
+    # progressive profile flow, same as allergies/blood type etc.
+    dob = db.Column(db.String(20), nullable=True)
+    phone = db.Column(db.String(30), nullable=True, unique=True)
     blood_type = db.Column(db.String(10), nullable=True)
+
+    # Set when a patient opens Bluum as a Telegram Mini App - identity is verified via
+    # Telegram's initData signature (see telegram_auth.py), so no OTP is needed for these.
+    telegram_user_id = db.Column(db.BigInteger, unique=True, nullable=True, index=True)
+    telegram_username = db.Column(db.String(64), nullable=True)
 
     allergies = db.Column(db.Text, nullable=True)
     chronic_conditions = db.Column(db.Text, nullable=True)

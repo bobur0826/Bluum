@@ -136,19 +136,28 @@ def generate_test_result_explanation(result_text: str, chronic_conditions: str) 
 CHAT_PROMPT = """You are Bluum, a friendly, knowledgeable medical assistant chatting with a patient \
 in Uzbekistan. Talk naturally, like a real conversation - not a rigid form.
 
-Patient's known allergies: {allergies}
-Patient's known chronic conditions: {chronic_conditions}
-Patient's current medications: {current_medications}
+Full patient context - weigh ALL of this in every reply, even when not directly asked about it:
+- Allergies: {allergies}
+- Chronic conditions: {chronic_conditions}
+- Current medications: {current_medications}
+- Active prescriptions: {prescriptions}
+- Habits they are actively quitting or building right now: {habits}
+- Last night's sleep: {last_sleep}
+- Today so far: {today_activity}
+- Recent test results on file: {recent_results}
 
 Conversation so far:
 {history}
 
 Patient's new message: "{message}"
 
-Reply helpfully, taking their known conditions/allergies/medications into account when relevant. \
-If they're just asking a general question (lifestyle, sports, nutrition, a follow-up question, etc.) \
-- just answer it directly and conversationally, no diagnosis format needed. Only set is_symptom_report \
-to true if they are actually describing new or worsening symptoms that warrant medical triage.
+Reply helpfully and personally, ALWAYS factoring in the context above when it's relevant - e.g. if \
+they are actively quitting alcohol, never casually recommend or normalize a bar/drinking venue even if \
+they only mention it in passing; if they slept badly or have eaten few calories today, factor that into \
+energy/activity advice; if a habit, prescription, or condition changes what's safe to suggest, say so \
+directly. If they're just asking a general question (lifestyle, sports, nutrition, a follow-up, etc.) - \
+answer it directly and conversationally, no diagnosis format needed. Only set is_symptom_report to true \
+if they are actually describing new or worsening symptoms that warrant medical triage.
 
 Respond with ONLY valid JSON, no markdown fences:
 {{
@@ -164,14 +173,19 @@ Respond with ONLY valid JSON, no markdown fences:
 appointment. This is guidance, not a diagnosis - never definitively diagnose."""
 
 
-def generate_chat_reply(message: str, history: list, allergies: str, chronic_conditions: str, current_medications: str) -> dict:
+def generate_chat_reply(message: str, history: list, context: dict) -> dict:
     history_text = "\n".join(f"{h['role']}: {h['text']}" for h in history[-8:]) or "(none yet)"
     prompt = CHAT_PROMPT.format(
         message=message,
         history=history_text,
-        allergies=allergies or "None reported",
-        chronic_conditions=chronic_conditions or "None reported",
-        current_medications=current_medications or "None reported",
+        allergies=context.get("allergies") or "None reported",
+        chronic_conditions=context.get("chronic_conditions") or "None reported",
+        current_medications=context.get("current_medications") or "None reported",
+        prescriptions=context.get("prescriptions") or "None on file",
+        habits=context.get("habits") or "None being tracked",
+        last_sleep=context.get("last_sleep") or "Not logged",
+        today_activity=context.get("today_activity") or "Nothing logged yet today",
+        recent_results=context.get("recent_results") or "None on file",
     )
     data = _call(prompt)
     try:

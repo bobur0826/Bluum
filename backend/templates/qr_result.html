@@ -7,7 +7,7 @@
     <p class="subtitle no-print">Show this QR code at reception. All your paperwork will be filled in automatically.</p>
     <img src="/patients/{{ patient.token }}/qr.png" alt="Your Bluum QR code">
     <p style="font-weight:600; margin:12px 0 0;">{{ patient.full_name }}</p>
-    <p class="subtitle" style="margin:2px 0 0;">DOB {{ patient.dob }} · {{ patient.phone }}</p>
+    <p class="subtitle" style="margin:2px 0 0;">DOB {{ patient.dob or "—" }} · {{ patient.phone or "—" }}</p>
     <p class="subtitle no-print">Save a screenshot, or print a card to carry as backup.</p>
     <button class="no-print" onclick="window.print()" style="background:transparent; border:1px solid var(--border-strong); color:var(--text-primary);">Print my ID card</button>
     <a class="button no-print" href="/patients/{{ patient.token }}/dashboard">Go to your dashboard</a>
