@@ -9,7 +9,8 @@ requests==2.32.3
 python-dotenv==1.0.1
 scikit-learn==1.9.0
 joblib==1.5.3
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.9  # used only by local migration scripts, not by the running app (see app.py)
+pg8000==1.31.2  # pure-Python Postgres driver the app actually connects with - no libpq needed
 gunicorn==23.0.0
 
 # training-only, not needed at runtime:

@@ -62,7 +62,15 @@ def create_app():
     app.config["TELEGRAM_BOT_TOKEN"] = os.environ.get("TELEGRAM_BOT_TOKEN")
 
     # Falls back to local SQLite for dev; set DATABASE_URL (e.g. postgresql://...) in production.
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///bluum.db")
+    database_url = os.environ.get("DATABASE_URL", "sqlite:///bluum.db")
+    # Force the pure-Python pg8000 driver instead of psycopg2's C extension: psycopg2(-binary)
+    # needs the system libpq shared library, which isn't reliably present in every deploy
+    # environment (e.g. it's missing on Railway's build image) - pg8000 has no such dependency.
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql+pg8000://" + database_url[len("postgres://"):]
+    elif database_url.startswith("postgresql://"):
+        database_url = "postgresql+pg8000://" + database_url[len("postgresql://"):]
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # Cookies only over HTTPS once actually deployed (FLASK_DEBUG=0); allows plain HTTP for local dev.
