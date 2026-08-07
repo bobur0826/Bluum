@@ -115,6 +115,16 @@
         <span class="icon">👤</span><span>{{ t('nav_profile') }}</span>
       </a>
     </nav>
+
+    <div class="streak-modal-overlay" id="streak-modal" onclick="if (event.target === this) closeStreakShare()">
+      <div class="streak-modal-card">
+        <button type="button" class="streak-modal-close" onclick="closeStreakShare()">✕</button>
+        <img id="streak-modal-img" alt="Streak card" src="">
+        <div class="streak-modal-actions">
+          <button type="button" class="streak-modal-share-btn" onclick="shareStreakCard()">Share</button>
+        </div>
+      </div>
+    </div>
     {% endif %}
   </div>
   <script>
@@ -130,6 +140,42 @@
       syncThemeIcon();
     }
     syncThemeIcon();
+
+    var _streakCardUrl = null;
+
+    function openStreakShare(url) {
+      _streakCardUrl = url;
+      document.getElementById('streak-modal-img').src = url;
+      document.getElementById('streak-modal').classList.add('open');
+    }
+    function closeStreakShare() {
+      document.getElementById('streak-modal').classList.remove('open');
+    }
+    async function shareStreakCard() {
+      if (!_streakCardUrl) return;
+      try {
+        var resp = await fetch(_streakCardUrl);
+        var blob = await resp.blob();
+        var file = new File([blob], 'bluum-streak.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'My Bluum streak' });
+          return;
+        }
+      } catch (e) { /* fall through to download */ }
+      var a = document.createElement('a');
+      a.href = _streakCardUrl;
+      a.download = 'bluum-streak.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.streak-btn.share');
+      if (!btn) return;
+      e.preventDefault();
+      openStreakShare(btn.getAttribute('href'));
+    });
   </script>
 </body>
 </html>

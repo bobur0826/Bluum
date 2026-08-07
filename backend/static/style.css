@@ -793,6 +793,82 @@ button:active, .button:active { opacity: 0.85; }
 .streak-btn.share { background: transparent; color: var(--text-primary); border: 1px solid var(--border-strong); text-decoration: none; display: inline-block; }
 .streak-btn.stop { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
 
+/* ---- Streak share card: pops up as an overlay instead of navigating away ---- */
+
+.streak-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.streak-modal-overlay.open { display: flex; }
+
+.streak-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #030805;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: streak-modal-in 0.22s ease;
+}
+
+@keyframes streak-modal-in {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.streak-modal-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #030805;
+}
+
+.streak-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.streak-modal-actions {
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+  background: #030805;
+}
+
+.streak-modal-share-btn {
+  flex: 1;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .week-strip {
   display: flex;
   gap: 6px;
