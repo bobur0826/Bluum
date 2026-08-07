@@ -91,6 +91,17 @@ def create_app():
     def get_patient_or_404(token):
         return Patient.query.filter_by(token=token).first_or_404()
 
+    @app.before_request
+    def _strip_stray_trailing_backslash():
+        # Some Telegram clients (observed on Desktop) append a literal trailing
+        # backslash to the Mini App URL when loading it, e.g. "/telegram\" instead
+        # of "/telegram" - a client-side quirk, not something a URL can be typed
+        # to avoid. Redirect it to the clean path rather than 404ing on it.
+        if request.path.endswith("\\"):
+            clean_path = request.path.rstrip("\\") or "/"
+            qs = request.query_string.decode()
+            return redirect(clean_path + (f"?{qs}" if qs else ""), code=308)
+
     @app.context_processor
     def inject_lang():
         lang = session.get("lang", "en")
