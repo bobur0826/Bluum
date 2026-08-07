@@ -16,6 +16,18 @@
     </div>
   </a>
 
+  <a href="/patients/{{ patient.token }}/nutrition" class="streak-card" style="display:block; text-decoration:none; margin-bottom:20px;">
+    <div class="streak-card-top">
+      <div>
+        <div class="streak-hero-num">
+          <span class="fire">🍽️</span>{{ today_food.calories }}<span class="unit">{{ t('kcal_today') }}</span>
+        </div>
+        <p class="streak-name">{{ t('nutrition_link_label') }}</p>
+      </div>
+      <span class="streak-btn share">{{ t('open') }} ›</span>
+    </div>
+  </a>
+
   <div class="activity-week">
     {% for d in week %}
       <a class="activity-day {{ 'hit' if d.hit }} {{ 'today' if d.today }}" href="/patients/{{ patient.token }}/day/{{ d.date }}">
@@ -81,16 +93,16 @@
         <div><label>{{ t('active_calories') }}</label><input type="number" name="active_calories" min="0" placeholder="e.g. 400" value="{{ today_log.active_calories if today_log else '' }}"></div>
         <div><label>{{ t('water') }}</label><input type="number" name="water_cups" min="0" placeholder="e.g. 5" value="{{ today_log.water_cups if today_log else '' }}"></div>
       </div>
-      <button type="submit">Save</button>
+      <button type="submit">{{ t('save') }}</button>
     </form>
 
-    <h2 style="font-size:15px; margin:20px 0 8px;">Log tonight's sleep</h2>
+    <h2 style="font-size:15px; margin:20px 0 8px;">{{ t('log_tonight_sleep') }}</h2>
     <form method="post" action="/patients/{{ patient.token }}/sleep">
       <div class="quick-log-grid">
-        <div><label>Slept at</label><input type="time" name="sleep_time"></div>
-        <div><label>Woke up at</label><input type="time" name="wake_time"></div>
+        <div><label>{{ t('slept_at') }}</label><input type="time" name="sleep_time"></div>
+        <div><label>{{ t('woke_at') }}</label><input type="time" name="wake_time"></div>
       </div>
-      <button type="submit">Save</button>
+      <button type="submit">{{ t('save') }}</button>
     </form>
   </div>
 {% endblock %}

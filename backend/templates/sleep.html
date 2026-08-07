@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Bluum — Sleep{% endblock %}
 {% block content %}
-  <h1 style="margin-bottom:2px;">Sleep schedule</h1>
-  <p class="subtitle" style="margin-top:0;">Consistency, not perfection.</p>
+  <h1 style="margin-bottom:2px;">{{ t('sleep_schedule') }}</h1>
+  <p class="subtitle" style="margin-top:0;">{{ t('sleep_sub') }}</p>
 
   <div class="streak-card">
     <div class="streak-card-top">
       <div>
         <div class="streak-hero-num">
-          <span class="fire">🌙</span>{{ streak }}<span class="unit">day{{ '' if streak == 1 else 's' }}</span>
+          <span class="fire">🌙</span>{{ streak }}<span class="unit">{{ t('day_streak') }}</span>
         </div>
-        <p class="streak-name">Sleep streak</p>
+        <p class="streak-name">{{ t('sleep_streak_label') }}</p>
       </div>
       <div class="streak-actions">
-        <a href="/patients/{{ patient.token }}/sleep/card.png" target="_blank" class="streak-btn share">Share</a>
+        <a href="/patients/{{ patient.token }}/sleep/card.png" class="streak-btn share">{{ t('share') }}</a>
       </div>
     </div>
     <div class="week-strip">
@@ -29,18 +29,18 @@
   <div class="card">
     {% if not logged_today %}
       <form method="post" action="/patients/{{ patient.token }}/sleep">
-        <label>Slept at</label>
+        <label>{{ t('slept_at') }}</label>
         <input type="time" name="sleep_time">
-        <label>Woke up at</label>
+        <label>{{ t('woke_at') }}</label>
         <input type="time" name="wake_time">
-        <button type="submit">Log today's sleep</button>
+        <button type="submit">{{ t('save') }}</button>
       </form>
     {% else %}
-      <p class="subtitle">✓ Logged for today.</p>
+      <p class="subtitle">{{ t('logged_today') }}</p>
     {% endif %}
 
     {% if logs %}
-      <h2 style="margin-top:20px; font-size:15px;">Recent nights</h2>
+      <h2 style="margin-top:20px; font-size:15px;">{{ t('recent_nights') }}</h2>
       {% for l in logs %}
         <div class="field-row">
           <span class="field-label">{{ l.log_date }} — {{ l.sleep_time or '?' }} → {{ l.wake_time or '?' }}{% if l.hours %} ({{ l.hours }}h){% endif %}</span>

@@ -92,7 +92,11 @@
             <div class="avatar">{{ current_user.full_name[0] }}</div>
             <span class="user-chip">{{ current_user.full_name }}</span>
           {% elif patient %}
-            <div class="avatar">{{ patient.full_name[0] }}</div>
+            {% if patient.avatar_filename %}
+              <img class="avatar avatar-photo" src="/static/img/{{ patient.avatar_filename }}" alt="">
+            {% else %}
+              <div class="avatar">{{ patient.full_name[0] }}</div>
+            {% endif %}
             <span class="user-chip">{{ patient.full_name }}</span>
           {% endif %}
         </div>

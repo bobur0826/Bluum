@@ -9,14 +9,19 @@
 <body class="onboarding-body">
   <div class="onboarding-screen">
     <div class="onboarding-art">
-      <span class="onboarding-badge">🔥 Day 1 starts now</span>
+      <div class="lang-pills" style="position:absolute; top:16px; right:16px;">
+        <a href="/set-lang/en" class="{{ 'active' if current_lang == 'en' }}">EN</a>
+        <a href="/set-lang/uz" class="{{ 'active' if current_lang == 'uz' }}">UZ</a>
+        <a href="/set-lang/ru" class="{{ 'active' if current_lang == 'ru' }}">RU</a>
+      </div>
+      <span class="onboarding-badge">{{ t('onboarding_badge') }}</span>
     </div>
     <div class="onboarding-panel">
-      <h1 class="onboarding-title">Wherever you are, <span class="accent">health</span> is number one.</h1>
-      <p class="onboarding-lead">Quit a habit, fix your sleep, understand your visits — one streak at a time.</p>
+      <h1 class="onboarding-title">{{ t('onboarding_title_pre') }}<span class="accent">{{ t('onboarding_title_accent') }}</span>{{ t('onboarding_title_post') }}</h1>
+      <p class="onboarding-lead">{{ t('onboarding_lead') }}</p>
       <div class="onboarding-progress"><span class="on"></span><span></span><span></span></div>
-      <a class="onboarding-cta" href="/patient/new/form">Get Started</a>
-      <a class="onboarding-secondary" href="/patient/login">Already have an account? Log in</a>
+      <a class="onboarding-cta" href="/patient/new/form">{{ t('onboarding_cta') }}</a>
+      <a class="onboarding-secondary" href="/patient/login">{{ t('onboarding_login') }}</a>
     </div>
   </div>
 </body>

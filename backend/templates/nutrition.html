@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Bluum — Nutrition{% endblock %}
+{% block content %}
+  <h1 style="margin-bottom:2px;">{{ t('nutrition_title') }}</h1>
+  <p class="subtitle" style="margin-top:0;">{{ t('nutrition_sub') }}</p>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2 style="font-size:15px; margin:0 0 10px;">{{ t('goal_label') }}</h2>
+    <form method="post" action="/patients/{{ patient.token }}/nutrition/goal" class="goal-picker">
+      {% for value, key, emoji in [("bulking","goal_bulking","💪"),("staying_in_shape","goal_staying_in_shape","⚖️"),("losing_weight","goal_losing_weight","🔥")] %}
+        <button type="submit" name="goal" value="{{ value }}" class="goal-option {{ 'active' if patient.fitness_goal == value }}">
+          <span class="emoji">{{ emoji }}</span>{{ t(key) }}
+        </button>
+      {% endfor %}
+    </form>
+  </div>
+
+  <div class="report-grid" style="margin-bottom:16px;">
+    <div class="report-card tint-green" style="grid-column: 1 / -1;">
+      <p class="r-label">🍽️ {{ t('calories_today') }}</p>
+      <p class="r-value" style="font-size:26px;">{{ totals.calories }} / {{ targets.calories }}</p>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ [(totals.calories / targets.calories * 100) | round | int, 100] | min }}%;"></div></div>
+    </div>
+
+    <div class="report-card tint-red">
+      <p class="r-label">🥩 {{ t('protein_label') }}</p>
+      <p class="r-value" style="font-size:18px;">{{ totals.protein_g }}g / {{ targets.protein_g }}g</p>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ [(totals.protein_g / targets.protein_g * 100) | round | int, 100] | min }}%;"></div></div>
+    </div>
+
+    <div class="report-card tint-yellow">
+      <p class="r-label">🧈 {{ t('fat_label') }}</p>
+      <p class="r-value" style="font-size:18px;">{{ totals.fat_g }}g / {{ targets.fat_g }}g</p>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ [(totals.fat_g / targets.fat_g * 100) | round | int, 100] | min }}%;"></div></div>
+    </div>
+
+    <div class="report-card tint-purple">
+      <p class="r-label">🍞 {{ t('carbs_label') }}</p>
+      <p class="r-value" style="font-size:18px;">{{ totals.carbs_g }}g / {{ targets.carbs_g }}g</p>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:{{ [(totals.carbs_g / targets.carbs_g * 100) | round | int, 100] | min }}%;"></div></div>
+    </div>
+
+    <div class="report-card tint-blue">
+      <p class="r-label">🔥 {{ t('burned_today') }}</p>
+      <p class="r-value" style="font-size:18px;">{{ burned }}</p>
+      <p class="r-sub">{{ t('generated_no_wearable') }}</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2 style="font-size:15px; margin:0 0 10px;">{{ t('log_a_meal') }}</h2>
+    <form method="post" action="/patients/{{ patient.token }}/nutrition/log" enctype="multipart/form-data">
+      <label>{{ t('photo_of_meal') }}</label>
+      <input type="file" name="photo" accept="image/*" capture="environment">
+      <button type="submit" style="margin-top:12px;">{{ t('estimate_and_log') }}</button>
+    </form>
+    <p class="subtitle" style="margin:10px 0 0; font-size:12px;">{{ t('nutrition_disclaimer') }}</p>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px; margin:0 0 8px;">{{ t('todays_meals') }}</h2>
+    {% if not logs %}
+      <p class="subtitle" style="margin:8px 0 0;">{{ t('nothing_logged_today') }}</p>
+    {% endif %}
+    {% for log in logs %}
+      <div class="food-log-row">
+        {% if log.photo_filename %}
+          <img class="food-log-thumb" src="/patients/{{ patient.token }}/nutrition/log/{{ log.id }}/photo" alt="">
+        {% else %}
+          <div class="food-log-thumb food-log-thumb-placeholder">🍽️</div>
+        {% endif %}
+        <div class="food-log-info">
+          <p class="name">{{ log.description }}</p>
+          <p class="meta">{{ log.calories }} kcal · {{ log.protein_g }}g {{ t('protein_label').lower() }} · {{ log.fat_g }}g {{ t('fat_label').lower() }} · {{ log.carbs_g }}g {{ t('carbs_label').lower() }}</p>
+        </div>
+        <form method="post" action="/patients/{{ patient.token }}/nutrition/log/{{ log.id }}/delete">
+          <button type="submit" class="streak-btn stop">{{ t('delete') }}</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

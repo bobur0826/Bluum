@@ -33,6 +33,14 @@ class Patient(db.Model):
     telegram_user_id = db.Column(db.BigInteger, unique=True, nullable=True, index=True)
     telegram_username = db.Column(db.String(64), nullable=True)
 
+    # Filename under static/img/ for this patient's profile picture. None falls
+    # back to the generic character.png mascot in templates.
+    avatar_filename = db.Column(db.String(120), nullable=True)
+
+    # What this patient is optimizing for - drives the calorie/macro targets
+    # on the nutrition page. "bulking" / "maintaining" / "cutting".
+    fitness_goal = db.Column(db.String(20), nullable=True)
+
     allergies = db.Column(db.Text, nullable=True)
     chronic_conditions = db.Column(db.Text, nullable=True)
     current_medications = db.Column(db.Text, nullable=True)
@@ -252,15 +260,47 @@ def compute_streak(dates_desc):
     return streak
 
 
+# kind -> thumbnail under static/img/habits/. Kinds not listed here (e.g.
+# "custom") just show the emoji fallback instead - not every habit someone
+# types in will have a matching stock photo.
+HABIT_KIND_PHOTOS = {
+    "smoking": "smoking.jpg",
+    "alcohol": "alcohol.jpg",
+    "running": "running.jpg",
+    "swimming": "swimming.jpg",
+    "tennis": "tennis.jpg",
+    "morning_walk": "morning_walk.jpg",
+    "sleeping_schedule": "sleeping_schedule.jpg",
+}
+
+HABIT_KIND_LABELS = {
+    "smoking": "Smoking",
+    "alcohol": "Alcohol",
+    "running": "Running",
+    "swimming": "Swimming",
+    "tennis": "Tennis",
+    "morning_walk": "Morning walk",
+    "sleeping_schedule": "Sleeping schedule",
+    "custom": "Custom",
+}
+
+
 class Habit(db.Model):
     __tablename__ = "habits"
 
     id = db.Column(db.Integer, primary_key=True)
     patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
     name = db.Column(db.String(120), nullable=False)  # e.g. "Quit smoking"
-    kind = db.Column(db.String(32), nullable=False, default="custom")  # smoking / alcohol / custom
+    kind = db.Column(db.String(32), nullable=False, default="custom")  # see HABIT_KIND_PHOTOS
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def photo_url(self):
+        filename = HABIT_KIND_PHOTOS.get(self.kind)
+        return f"/static/img/habits/{filename}" if filename else None
+
+    def kind_label(self):
+        return HABIT_KIND_LABELS.get(self.kind, self.kind.replace("_", " ").capitalize())
 
     def current_streak(self):
         days = [c.checkin_date for c in self.checkins]
@@ -364,3 +404,44 @@ class DailyLog(db.Model):
     @staticmethod
     def today_for(patient_token):
         return DailyLog.query.filter_by(patient_token=patient_token, log_date=date.today()).first()
+
+
+FITNESS_GOALS = ("bulking", "staying_in_shape", "losing_weight")
+
+# Rough daily targets per goal - a simplified placeholder methodology (not a
+# real BMR/TDEE calculation), good enough for the demo-stage nutrition page.
+GOAL_TARGETS = {
+    "bulking": {"calories": 2800, "protein_g": 170, "fat_g": 90, "carbs_g": 340},
+    "staying_in_shape": {"calories": 2200, "protein_g": 130, "fat_g": 70, "carbs_g": 250},
+    "losing_weight": {"calories": 1700, "protein_g": 140, "fat_g": 55, "carbs_g": 150},
+}
+
+
+class FoodLog(db.Model):
+    """A single food entry, normally created from a photo. Calories/macros are
+    currently simulated (no real vision-model analysis wired up yet) - see
+    nutrition_estimate_from_photo() in app.py for where that placeholder
+    estimate is produced, so it's easy to find and swap for a real one later."""
+
+    __tablename__ = "food_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_token = db.Column(db.String(16), db.ForeignKey("patients.token"), nullable=False, index=True)
+    log_date = db.Column(db.Date, nullable=False, default=date.today)
+    description = db.Column(db.String(160), nullable=True)
+    photo_filename = db.Column(db.String(255), nullable=True)
+    calories = db.Column(db.Integer, nullable=False, default=0)
+    protein_g = db.Column(db.Integer, nullable=False, default=0)
+    fat_g = db.Column(db.Integer, nullable=False, default=0)
+    carbs_g = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    @staticmethod
+    def today_totals(patient_token):
+        rows = FoodLog.query.filter_by(patient_token=patient_token, log_date=date.today()).all()
+        return {
+            "calories": sum(r.calories for r in rows),
+            "protein_g": sum(r.protein_g for r in rows),
+            "fat_g": sum(r.fat_g for r in rows),
+            "carbs_g": sum(r.carbs_g for r in rows),
+        }

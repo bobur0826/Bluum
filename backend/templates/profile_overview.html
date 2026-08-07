@@ -4,76 +4,78 @@
   <div class="data-page">
 
     <div class="profile-hero">
-      <img class="profile-mascot" src="/static/img/character.png" alt="">
+      <img class="profile-mascot{{ ' profile-mascot-photo' if patient.avatar_filename }}" src="/static/img/{{ patient.avatar_filename or 'character.png' }}" alt="">
       <div class="profile-hero-top">
         <div class="profile-qr"><img src="/patients/{{ patient.token }}/qr.png" alt="QR code"></div>
         <div>
           <p class="profile-hero-name">{{ patient.full_name }}</p>
-          <p class="profile-hero-sub">Member since {{ patient.created_at.strftime("%-d %b %Y") if patient.created_at else "—" }}</p>
+          <p class="profile-hero-sub">{{ t('member_since') }} {{ patient.created_at.strftime("%-d %b %Y") if patient.created_at else "—" }}</p>
         </div>
       </div>
       <div class="profile-chips">
         <span class="profile-chip">🎂 {{ patient.dob or "—" }}</span>
         <span class="profile-chip">📱 {{ patient.phone or "—" }}</span>
-        <span class="profile-chip">🔥 {{ total_streak_days }} total streak days</span>
+        <span class="profile-chip">🔥 {{ total_streak_days }} {{ t('total_streak_days') }}</span>
       </div>
     </div>
 
     {% if next_question %}
       <div class="panel" style="margin-bottom:16px; border-color: var(--accent);">
-        <h3>One more question</h3>
+        <h3>{{ t('one_more_question') }}</h3>
         <p style="margin:0 0 12px;">{{ next_question }}</p>
-        <a class="button" style="margin-top:0;" href="/patients/{{ patient.token }}/profile/next-question">Answer</a>
+        <a class="button" style="margin-top:0;" href="/patients/{{ patient.token }}/profile/next-question">{{ t('answer') }}</a>
       </div>
     {% endif %}
 
     <div class="card">
       <div class="streaks-section-title">
-        <h2>My Streaks</h2>
-        <a href="/patients/{{ patient.token }}/habits/streaks">Manage</a>
+        <h2>{{ t('my_streaks') }}</h2>
+        <a href="/patients/{{ patient.token }}/habits/streaks">{{ t('manage') }}</a>
       </div>
       <div class="streak-row">
         <span class="streak-row-icon">🌙</span>
-        <span class="streak-row-text"><span class="name">Sleep schedule</span><br><span class="meta">Consistency streak</span></span>
+        <span class="streak-row-text"><span class="name">{{ t('sleep_schedule') }}</span><br><span class="meta">{{ t('consistency_streak') }}</span></span>
         <span class="streak-row-count">{{ sleep_streak }}d</span>
       </div>
       {% for h in habits %}
         <div class="streak-row">
           <span class="streak-row-icon">🔥</span>
-          <span class="streak-row-text"><span class="name">{{ h.name }}</span><br><span class="meta">{{ h.kind|capitalize }}</span></span>
+          <span class="streak-row-text"><span class="name">{{ h.name }}</span><br><span class="meta">{{ t('kind_' ~ h.kind) }}</span></span>
           <span class="streak-row-count">{{ h.current_streak() }}d</span>
         </div>
       {% endfor %}
       {% if not habits %}
-        <p class="subtitle" style="margin:8px 0 0;">No habits yet — <a href="/patients/{{ patient.token }}/habits/streaks">start one</a>.</p>
+        <p class="subtitle" style="margin:8px 0 0;">{{ t('no_habits_yet_start') }}</p>
       {% endif %}
     </div>
 
     <div class="panel-grid">
       <div class="panel">
-        <h3>Personal info</h3>
-        <div class="field-row"><span class="field-label">Blood type</span><span class="field-value">{{ patient.blood_type or "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Height</span><span class="field-value">{{ (patient.height_cm ~ " cm") if patient.height_cm else "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Weight</span><span class="field-value">{{ (patient.weight_kg ~ " kg") if patient.weight_kg else "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Smoking</span><span class="field-value">{{ patient.smoking_status or "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Occupation</span><span class="field-value">{{ patient.occupation or "—" }}</span></div>
+        <h3>{{ t('personal_info') }}</h3>
+        <div class="field-row"><span class="field-label">{{ t('blood_type') }}</span><span class="field-value">{{ patient.blood_type or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('height_label') }}</span><span class="field-value">{{ (patient.height_cm ~ " cm") if patient.height_cm else "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('weight_label') }}</span><span class="field-value">{{ (patient.weight_kg ~ " kg") if patient.weight_kg else "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('smoking_status_label') }}</span><span class="field-value">{{ patient.smoking_status or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('occupation_label') }}</span><span class="field-value">{{ patient.occupation or "—" }}</span></div>
       </div>
 
       <div class="panel">
-        <h3>Emergency contact</h3>
-        <div class="field-row"><span class="field-label">Name</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Phone</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
-        <h3 style="margin-top:20px;">Language</h3>
-        <div class="field-row"><span class="field-label">Explanations in</span><span class="field-value">{{ "Simple language" if patient.language_register == "simple" else "Medical terms" }}</span></div>
+        <h3>{{ t('emergency_contact') }}</h3>
+        <div class="field-row"><span class="field-label">{{ t('name_label') }}</span><span class="field-value">{{ patient.emergency_contact_name or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('phone_label') }}</span><span class="field-value">{{ patient.emergency_contact_phone or "—" }}</span></div>
+        <h3 style="margin-top:20px;">{{ t('language_label') }}</h3>
+        <div class="field-row"><span class="field-label">{{ t('explanations_in') }}</span><span class="field-value">{{ t('simple_language') if patient.language_register == "simple" else t('medical_terms') }}</span></div>
       </div>
 
       <div class="panel" style="grid-column: 1 / -1;">
-        <h3>Medical info</h3>
-        <div class="field-row"><span class="field-label">Allergies</span><span class="field-value">{{ patient.allergies or "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Chronic conditions</span><span class="field-value">{{ patient.chronic_conditions or "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Current medications</span><span class="field-value">{{ patient.current_medications or "—" }}</span></div>
-        <div class="field-row"><span class="field-label">Family history</span><span class="field-value">{{ patient.family_history or "—" }}</span></div>
+        <h3>{{ t('medical_info') }}</h3>
+        <div class="field-row"><span class="field-label">{{ t('allergies_label') }}</span><span class="field-value">{{ patient.allergies or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('chronic_conditions_label') }}</span><span class="field-value">{{ patient.chronic_conditions or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('current_medications_label') }}</span><span class="field-value">{{ patient.current_medications or "—" }}</span></div>
+        <div class="field-row"><span class="field-label">{{ t('family_history_label') }}</span><span class="field-value">{{ patient.family_history or "—" }}</span></div>
       </div>
     </div>
+
+    <a href="/patient/logout" class="button" style="background:transparent; border:1px solid var(--border-strong); color:var(--text-secondary); margin-top:20px; text-align:center;">🚪 {{ t('log_out') }}</a>
   </div>
 {% endblock %}

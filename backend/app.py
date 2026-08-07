@@ -28,6 +28,8 @@ from models import (
     CheckIn,
     DailyLog,
     Document,
+    FoodLog,
+    GOAL_TARGETS,
     Habit,
     HabitCheckIn,
     Medication,
@@ -42,6 +44,7 @@ from models import (
 from share_card import generate_streak_card
 from sms import send_sms
 from symptom_model import predict_diseases
+from nutrition import generate_calories_burned, generate_food_estimate
 from telegram_auth import verify_init_data
 from translations import t as translate
 from uploads import save_upload, upload_path
@@ -158,7 +161,10 @@ def create_app():
 
     @app.get("/")
     def home():
-        return render_template("home.html")
+        # Straight into signup/login - no more "I'm a patient / I'm hospital
+        # staff" chooser landing page. Staff can still reach their login
+        # directly at /staff/login if needed for a hospital-side demo.
+        return render_template("onboarding.html")
 
     @app.get("/patient/new")
     def patient_onboarding():
@@ -359,10 +365,16 @@ def create_app():
 
     # ---------------------------------------------------------------- progressive profile
 
+    def _translated_progressive_question(patient):
+        field, question = patient.next_progressive_question()
+        if field:
+            question = translate(f"progressive_q_{field}", session.get("lang", "en"))
+        return field, question
+
     @app.get("/patients/<token>/profile")
     def profile_overview(token):
         patient = get_patient_or_404(token)
-        field, question = patient.next_progressive_question()
+        field, question = _translated_progressive_question(patient)
         habits = Habit.query.filter_by(patient_token=token, active=True).order_by(Habit.created_at).all()
         sleep_streak = SleepLog.current_streak_for(token)
         total_streak_days = sum(h.current_streak() for h in habits) + sleep_streak
@@ -374,7 +386,7 @@ def create_app():
     @app.get("/patients/<token>/profile/next-question")
     def profile_next_question(token):
         patient = get_patient_or_404(token)
-        field, question = patient.next_progressive_question()
+        field, question = _translated_progressive_question(patient)
         return render_template("profile_question.html", patient=patient, field=field, question=question)
 
     @app.post("/patients/<token>/profile/next-question")
@@ -641,11 +653,13 @@ def create_app():
 
         last_sleep = SleepLog.query.filter_by(patient_token=token).order_by(SleepLog.log_date.desc()).first()
         today_log = DailyLog.today_for(token)
+        today_food = FoodLog.today_totals(token)
 
         return render_template(
             "habits.html", patient=patient, week=week, best_streak=best_streak,
             checked_in_today=checked_in_today, total_habits=len(habits), sleep_streak=sleep_streak,
             last_sleep=last_sleep, today_log=today_log, DailyLog=DailyLog, best_habit_streak=best_habit_streak,
+            today_food=today_food,
         )
 
     @app.get("/patients/<token>/day/<day>")
@@ -706,10 +720,23 @@ def create_app():
             db.session.commit()
         return redirect(url_for("habit_streaks", token=token))
 
+    @app.post("/patients/<token>/habits/<int:habit_id>/edit")
+    def edit_habit(token, habit_id):
+        habit = Habit.query.filter_by(id=habit_id, patient_token=token).first_or_404()
+        name = request.form.get("name", "").strip()
+        if name:
+            habit.name = name
+        habit.kind = request.form.get("kind", habit.kind)
+        db.session.commit()
+        return redirect(url_for("habit_streaks", token=token))
+
     @app.post("/patients/<token>/habits/<int:habit_id>/delete")
     def delete_habit(token, habit_id):
+        # A real, permanent delete (not just deactivating) - the button this
+        # is wired to says "Delete" and confirms first, so it should mean it.
         habit = Habit.query.filter_by(id=habit_id, patient_token=token).first_or_404()
-        habit.active = False
+        HabitCheckIn.query.filter_by(habit_id=habit.id).delete()
+        db.session.delete(habit)
         db.session.commit()
         return redirect(url_for("habit_streaks", token=token))
 
@@ -718,6 +745,71 @@ def create_app():
         habit = Habit.query.filter_by(id=habit_id, patient_token=token).first_or_404()
         buf = generate_streak_card(habit.name, habit.current_streak(), subtitle="on Bluum")
         return send_file(buf, mimetype="image/png")
+
+    # ---------------------------------------------------------------- nutrition
+    # Calorie/macro tracking from a food photo, and a daily calories-burned
+    # figure. Both are SIMULATED for now (see nutrition.py) - no real vision
+    # model or wearable integration wired up yet.
+
+    @app.get("/patients/<token>/nutrition")
+    def nutrition_page(token):
+        patient = get_patient_or_404(token)
+        today = date.today()
+        logs = FoodLog.query.filter_by(patient_token=token, log_date=today).order_by(FoodLog.created_at.desc()).all()
+        totals = FoodLog.today_totals(token)
+        targets = GOAL_TARGETS.get(patient.fitness_goal, GOAL_TARGETS["staying_in_shape"])
+        burned = generate_calories_burned(token, today)
+        return render_template(
+            "nutrition.html", patient=patient, logs=logs, totals=totals, targets=targets,
+            burned=burned, net_calories=totals["calories"] - burned,
+        )
+
+    @app.post("/patients/<token>/nutrition/goal")
+    def set_fitness_goal(token):
+        patient = get_patient_or_404(token)
+        goal = request.form.get("goal")
+        if goal in GOAL_TARGETS:
+            patient.fitness_goal = goal
+            db.session.commit()
+        return redirect(url_for("nutrition_page", token=token))
+
+    @app.post("/patients/<token>/nutrition/log")
+    def add_food_log(token):
+        get_patient_or_404(token)
+        photo = request.files.get("photo")
+        stored_filename = None
+        if photo and photo.filename:
+            stored_filename, _original = save_upload(photo, token)
+            estimate = generate_food_estimate(stored_filename)
+        else:
+            # No photo (e.g. a manual/demo entry) - still generate something
+            # plausible rather than a blank log.
+            estimate = generate_food_estimate(f"{token}:{datetime.utcnow().isoformat()}")
+        db.session.add(FoodLog(
+            patient_token=token,
+            description=estimate["description"],
+            photo_filename=stored_filename,
+            calories=estimate["calories"],
+            protein_g=estimate["protein_g"],
+            fat_g=estimate["fat_g"],
+            carbs_g=estimate["carbs_g"],
+        ))
+        db.session.commit()
+        return redirect(url_for("nutrition_page", token=token))
+
+    @app.post("/patients/<token>/nutrition/log/<int:log_id>/delete")
+    def delete_food_log(token, log_id):
+        entry = FoodLog.query.filter_by(id=log_id, patient_token=token).first_or_404()
+        db.session.delete(entry)
+        db.session.commit()
+        return redirect(url_for("nutrition_page", token=token))
+
+    @app.get("/patients/<token>/nutrition/log/<int:log_id>/photo")
+    def food_log_photo(token, log_id):
+        entry = FoodLog.query.filter_by(id=log_id, patient_token=token).first_or_404()
+        if not entry.photo_filename:
+            abort(404)
+        return send_file(upload_path(token, entry.photo_filename))
 
     # ---------------------------------------------------------------- sleep streaks
 

@@ -1,37 +1,59 @@
 {% extends "base.html" %}
 {% block title %}Bluum — Habit Streaks{% endblock %}
 {% block content %}
-  <h1 style="margin-bottom:2px;">Habits &amp; streaks</h1>
-  <p class="subtitle" style="margin-top:0;">Quit something, build something — one check-in a day.</p>
+  <h1 style="margin-bottom:2px;">{{ t('habits_streaks_title') }}</h1>
+  <p class="subtitle" style="margin-top:0;">{{ t('habits_streaks_sub') }}</p>
 
   {% if not habits %}
-    <div class="card"><p class="subtitle">No habits tracked yet. Add one below.</p></div>
+    <div class="card"><p class="subtitle">{{ t('no_habits_yet') }}</p></div>
   {% endif %}
 
   {% for h in habits %}
     {% set streak = h.current_streak() %}
     <div class="streak-card">
       <div class="streak-card-top">
+        {% if h.photo_url() %}
+          <img class="habit-thumb" src="{{ h.photo_url() }}" alt="">
+        {% endif %}
         <div>
           <div class="streak-hero-num">
-            <span class="fire">🔥</span>{{ streak }}<span class="unit">day{{ '' if streak == 1 else 's' }}</span>
+            <span class="fire">🔥</span>{{ streak }}<span class="unit">{{ t('day_streak') }}</span>
           </div>
           <p class="streak-name">{{ h.name }}</p>
+          <p class="streak-kind">{{ t('kind_' ~ h.kind) }}</p>
         </div>
         <div class="streak-actions">
           {% if not h.checked_in_today() %}
             <form method="post" action="/patients/{{ patient.token }}/habits/{{ h.id }}/checkin">
-              <button type="submit" class="streak-btn checkin">Check in</button>
+              <button type="submit" class="streak-btn checkin">{{ t('check_in') }}</button>
             </form>
           {% else %}
-            <span class="streak-btn done">✓ Done</span>
+            <span class="streak-btn done">{{ t('done_label') }}</span>
           {% endif %}
-          <a href="/patients/{{ patient.token }}/habits/{{ h.id }}/card.png" target="_blank" class="streak-btn share">Share</a>
-          <form method="post" action="/patients/{{ patient.token }}/habits/{{ h.id }}/delete">
-            <button type="submit" class="streak-btn stop">Stop</button>
+          <a href="/patients/{{ patient.token }}/habits/{{ h.id }}/card.png" class="streak-btn share">{{ t('share') }}</a>
+          <button type="button" class="streak-btn edit" onclick="document.getElementById('edit-{{ h.id }}').classList.toggle('open')">{{ t('edit') }}</button>
+          <form method="post" action="/patients/{{ patient.token }}/habits/{{ h.id }}/delete"
+                data-confirm-text="{{ t('delete_habit_confirm') }}"
+                onsubmit="return confirm(this.dataset.confirmText);">
+            <button type="submit" class="streak-btn stop">{{ t('delete') }}</button>
           </form>
         </div>
       </div>
+
+      <div class="habit-edit-panel" id="edit-{{ h.id }}">
+        <form method="post" action="/patients/{{ patient.token }}/habits/{{ h.id }}/edit">
+          <label>{{ t('name_label') }}</label>
+          <input type="text" name="name" value="{{ h.name }}" required>
+          <label>{{ t('type_label') }}</label>
+          <select name="kind">
+            {% for value in ["smoking","alcohol","running","swimming","tennis","morning_walk","sleeping_schedule","custom"] %}
+              <option value="{{ value }}" {{ "selected" if h.kind == value }}>{{ t('kind_' ~ value) }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">{{ t('save_changes') }}</button>
+        </form>
+      </div>
+
       <div class="week-strip">
         {% for d in h.week_strip() %}
           <div class="week-day {{ 'hit' if d.hit }} {{ 'today' if d.today }}">
@@ -45,15 +67,16 @@
 
   <div class="card" style="margin-top:8px;">
     <form method="post" action="/patients/{{ patient.token }}/habits">
-      <label class="required">What are you quitting or building?</label>
-      <input type="text" name="name" required placeholder="e.g. Quit smoking">
-      <label>Type</label>
+      <label class="required">{{ t('habit_form_question') }}</label>
+      <input type="text" name="name" required placeholder="{{ t('habit_form_placeholder') }}">
+      <label>{{ t('type_label') }}</label>
       <select name="kind">
-        <option value="smoking">Smoking</option>
-        <option value="alcohol">Alcohol</option>
-        <option value="custom" selected>Custom</option>
+        {% for value in ["smoking","alcohol","running","swimming","tennis","morning_walk","sleeping_schedule"] %}
+          <option value="{{ value }}">{{ t('kind_' ~ value) }}</option>
+        {% endfor %}
+        <option value="custom" selected>{{ t('kind_custom') }}</option>
       </select>
-      <button type="submit">Start streak</button>
+      <button type="submit">{{ t('start_streak') }}</button>
     </form>
   </div>
 {% endblock %}
