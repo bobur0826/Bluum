@@ -44,7 +44,7 @@ from models import (
 from share_card import generate_streak_card
 from sms import send_sms
 from symptom_model import predict_diseases
-from nutrition import generate_calories_burned, generate_food_estimate
+from nutrition import analyze_food_photo, generate_calories_burned, generate_food_estimate
 from telegram_auth import verify_init_data
 from translations import t as translate
 from uploads import save_upload, upload_path
@@ -778,13 +778,18 @@ def create_app():
         get_patient_or_404(token)
         photo = request.files.get("photo")
         stored_filename = None
+        estimate = None
         if photo and photo.filename:
+            image_bytes = photo.read()
+            photo.seek(0)
+            estimate = analyze_food_photo(image_bytes)
             stored_filename, _original = save_upload(photo, token)
-            estimate = generate_food_estimate(stored_filename)
-        else:
-            # No photo (e.g. a manual/demo entry) - still generate something
-            # plausible rather than a blank log.
-            estimate = generate_food_estimate(f"{token}:{datetime.utcnow().isoformat()}")
+        if estimate is None:
+            # No photo, or the real vision call wasn't available/failed -
+            # fall back to a plausible generated placeholder rather than a
+            # blank log or a hard error.
+            seed = stored_filename or f"{token}:{datetime.utcnow().isoformat()}"
+            estimate = generate_food_estimate(seed)
         db.session.add(FoodLog(
             patient_token=token,
             description=estimate["description"],

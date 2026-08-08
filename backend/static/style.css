@@ -50,6 +50,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text-primary);
+  overflow-x: hidden;
 }
 
 a { color: var(--accent); }
@@ -234,6 +235,13 @@ a { color: var(--accent); }
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .topbar { padding: 10px 14px; gap: 10px; }
+  .user-chip { display: none; }
 }
 
 .sidebar-toggle {
@@ -756,6 +764,11 @@ button:active, .button:active { opacity: 0.85; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .streak-actions { width: 100%; margin-top: 4px; }
 }
 
 .habit-thumb {
@@ -978,8 +991,22 @@ button:active, .button:active { opacity: 0.85; }
   min-height: 320px;
   background: linear-gradient(160deg, #16a34a 0%, #0b3d20 100%);
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   padding: 24px;
+  padding-top: 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.onboarding-lizard {
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  height: 78%;
+  max-height: 260px;
+  width: auto;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.3));
+  pointer-events: none;
 }
 
 .onboarding-badge {
@@ -1147,6 +1174,11 @@ button:active, .button:active { opacity: 0.85; }
   display: flex;
   align-items: center;
   gap: 16px;
+  padding-right: 100px;
+}
+
+@media (max-width: 480px) {
+  .profile-hero-top { padding-right: 84px; }
 }
 
 .profile-qr {

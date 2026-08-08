@@ -140,7 +140,7 @@ STRINGS = {
     "log_a_meal": {"en": "Log a meal", "uz": "Ovqatni kiritish", "ru": "Записать приём пищи"},
     "photo_of_meal": {"en": "Photo of your meal", "uz": "Ovqatingiz rasmi", "ru": "Фото вашей еды"},
     "estimate_and_log": {"en": "Estimate & log", "uz": "Hisoblash va saqlash", "ru": "Рассчитать и записать"},
-    "nutrition_disclaimer": {"en": "Calories and macros are generated automatically for now — no real photo analysis yet.", "uz": "Hozircha kaloriya va oziq moddalar avtomatik generatsiya qilinadi — hali haqiqiy rasm tahlili yo'q.", "ru": "Пока калории и БЖУ рассчитываются автоматически — реального анализа фото ещё нет."},
+    "nutrition_disclaimer": {"en": "Calories and macros are AI-estimated from your photo — a helpful estimate, not exact nutrition facts.", "uz": "Kaloriya va oziq moddalar rasmingiz asosida AI tomonidan taxminan hisoblanadi — bu aniq oziqlanish ma'lumoti emas, foydali taxmin.", "ru": "Калории и БЖУ оцениваются ИИ по вашему фото — это полезная оценка, а не точные данные о питании."},
     "todays_meals": {"en": "Today's meals", "uz": "Bugungi ovqatlar", "ru": "Приёмы пищи за сегодня"},
     "nothing_logged_today": {"en": "Nothing logged yet today.", "uz": "Bugun hali hech narsa kiritilmagan.", "ru": "Сегодня пока ничего не записано."},
     "nutrition_link_label": {"en": "Nutrition — log a meal", "uz": "Ovqatlanish — ovqat kiritish", "ru": "Питание — записать приём пищи"},
