@@ -18,6 +18,8 @@
         {% set img = 'smoking.jpeg' %}
       {% elif h.kind == 'alcohol' or 'alcohol' in n or 'drink' in n %}
         {% set img = 'alcohol.jpeg' %}
+      {% elif h.kind == 'running' or 'run' in n %}
+        {% set img = 'running.jpeg' %}
       {% elif 'walk' in n or 'morning' in n %}
         {% set img = 'morning_walk.jpeg' %}
       {% else %}
