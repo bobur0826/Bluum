@@ -75,6 +75,18 @@ def create_app():
         database_url = "postgresql+pg8000://" + database_url[len("postgresql://"):]
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Without these, a connection that's been idle for a while (Supabase's pooler
+    # recycles/drops idle connections) gets handed to the next request as-is, and
+    # that request 500s with a dead-connection error instead of just reconnecting.
+    # pre_ping tests the connection before every use; recycle forces a refresh well
+    # before Supabase's own idle-timeout would kill it.
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
+    # Caps request body size (mainly the nutrition-photo upload) so one oversized
+    # or malicious upload can't exhaust memory on a small Railway instance.
+    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 
     # Cookies only over HTTPS once actually deployed (FLASK_DEBUG=0); allows plain HTTP for local dev.
     app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_DEBUG", "1") != "1"
