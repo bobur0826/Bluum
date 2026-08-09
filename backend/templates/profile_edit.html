@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Bluum — {{ t('edit_profile') }}{% endblock %}
+{% block content %}
+  <div class="data-page">
+    <h1 style="margin-bottom:2px;">{{ t('edit_profile') }}</h1>
+
+    <form method="post" action="/patients/{{ patient.token }}/profile/edit">
+      <div class="panel-grid">
+        <div class="panel">
+          <h3>{{ t('personal_info') }}</h3>
+          <label class="required">{{ t('full_name_label') }}</label>
+          <input type="text" name="full_name" value="{{ patient.full_name }}" required>
+          <label>{{ t('dob_label') }}</label>
+          <input type="date" name="dob" value="{{ patient.dob or '' }}">
+          <label>{{ t('blood_type') }}</label>
+          <input type="text" name="blood_type" value="{{ patient.blood_type or '' }}" placeholder="e.g. O+">
+          <label>{{ t('height_label') }} (cm)</label>
+          <input type="number" name="height_cm" value="{{ patient.height_cm or '' }}">
+          <label>{{ t('weight_label') }} (kg)</label>
+          <input type="number" name="weight_kg" value="{{ patient.weight_kg or '' }}">
+          <label>{{ t('smoking_status_label') }}</label>
+          <input type="text" name="smoking_status" value="{{ patient.smoking_status or '' }}" placeholder="never / former / current">
+          <label>{{ t('occupation_label') }}</label>
+          <input type="text" name="occupation" value="{{ patient.occupation or '' }}">
+        </div>
+
+        <div class="panel">
+          <h3>{{ t('emergency_contact') }}</h3>
+          <label>{{ t('name_label') }}</label>
+          <input type="text" name="emergency_contact_name" value="{{ patient.emergency_contact_name or '' }}">
+          <label>{{ t('phone_label') }}</label>
+          <input type="tel" name="emergency_contact_phone" value="{{ patient.emergency_contact_phone or '' }}">
+          <h3 style="margin-top:20px;">{{ t('language_label') }}</h3>
+          <label>{{ t('explanations_in') }}</label>
+          <select name="language_register">
+            <option value="simple" {{ "selected" if patient.language_register == "simple" }}>{{ t('simple_language') }}</option>
+            <option value="medical" {{ "selected" if patient.language_register == "medical" }}>{{ t('medical_terms') }}</option>
+          </select>
+        </div>
+
+        <div class="panel" style="grid-column: 1 / -1;">
+          <h3>{{ t('medical_info') }}</h3>
+          <label>{{ t('allergies_label') }}</label>
+          <input type="text" name="allergies" value="{{ patient.allergies or '' }}">
+          <label>{{ t('chronic_conditions_label') }}</label>
+          <input type="text" name="chronic_conditions" value="{{ patient.chronic_conditions or '' }}">
+          <label>{{ t('current_medications_label') }}</label>
+          <input type="text" name="current_medications" value="{{ patient.current_medications or '' }}">
+          <label>{{ t('family_history_label') }}</label>
+          <input type="text" name="family_history" value="{{ patient.family_history or '' }}">
+        </div>
+      </div>
+
+      <button type="submit" style="margin-top:16px;">{{ t('save_changes') }}</button>
+      <a class="button" href="/patients/{{ patient.token }}/profile" style="background:transparent; border:1px solid var(--border-strong); color:var(--text-secondary);">{{ t('cancel') }}</a>
+    </form>
+  </div>
+{% endblock %}

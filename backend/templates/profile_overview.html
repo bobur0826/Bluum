@@ -49,6 +49,8 @@
       {% endif %}
     </div>
 
+    <a href="/patients/{{ patient.token }}/profile/edit" class="button" style="margin:0 0 16px; background:transparent; border:1px solid var(--border-strong); color:var(--text-primary); text-align:center; display:block;">✏️ {{ t('edit_profile') }}</a>
+
     <div class="panel-grid">
       <div class="panel">
         <h3>{{ t('personal_info') }}</h3>

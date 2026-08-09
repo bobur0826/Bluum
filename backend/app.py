@@ -403,6 +403,37 @@ def create_app():
             db.session.commit()
         return redirect(url_for("profile_next_question", token=token))
 
+    # Editable after the fact - the progressive-question flow only ever asks
+    # once and never revisits a field, so a wrong answer (e.g. a mistyped
+    # weight) had no way to be corrected until now.
+    EDITABLE_PROFILE_FIELDS = [
+        "full_name", "dob", "blood_type", "height_cm", "weight_kg",
+        "smoking_status", "occupation", "emergency_contact_name",
+        "emergency_contact_phone", "language_register", "allergies",
+        "chronic_conditions", "current_medications", "family_history",
+    ]
+
+    @app.get("/patients/<token>/profile/edit")
+    def profile_edit_form(token):
+        patient = get_patient_or_404(token)
+        return render_template("profile_edit.html", patient=patient)
+
+    @app.post("/patients/<token>/profile/edit")
+    def profile_edit_submit(token):
+        patient = get_patient_or_404(token)
+        form = request.form
+        if not form.get("full_name", "").strip():
+            abort(400, "full_name is required")
+
+        for field in EDITABLE_PROFILE_FIELDS:
+            raw = form.get(field, "").strip()
+            if field in ("height_cm", "weight_kg"):
+                setattr(patient, field, int(raw) if raw.isdigit() else None)
+            else:
+                setattr(patient, field, raw or None)
+        db.session.commit()
+        return redirect(url_for("profile_overview", token=token))
+
     # ---------------------------------------------------------------- staff auth
 
     @app.get("/staff/register")
