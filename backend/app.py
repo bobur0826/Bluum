@@ -186,17 +186,18 @@ def create_app():
     @app.post("/patients")
     def create_patient():
         form = request.form
-        if not form.get("full_name") or not form.get("dob") or not form.get("phone"):
-            abort(400, "full_name, dob, and phone are required")
-        if Patient.query.filter_by(phone=form["phone"]).first():
-            return render_template(
-                "patient_form.html", error="An account with that phone number already exists"
-            ), 409
+        if not form.get("full_name") or not form.get("dob"):
+            abort(400, "full_name and dob are required")
 
-        patient = Patient(full_name=form["full_name"], dob=form["dob"], phone=form["phone"])
+        # No phone/OTP step - real signups happen via Telegram (see /telegram/auth),
+        # identified by Telegram username rather than a phone number. This manual
+        # web form is just a fallback, so it skips straight to a session, same as
+        # the Telegram path does.
+        patient = Patient(full_name=form["full_name"], dob=form["dob"], phone_verified=True)
         db.session.add(patient)
         db.session.commit()
-        return _send_otp_and_redirect(patient, "register")
+        session["patient_token"] = patient.token
+        return redirect(url_for("show_qr", token=patient.token))
 
     @app.get("/patient/login")
     def patient_login_form():
