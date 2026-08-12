@@ -16,6 +16,7 @@
         <span class="profile-chip">🎂 {{ patient.dob or "—" }}</span>
         <span class="profile-chip">📱 {{ patient.phone or "—" }}</span>
         <span class="profile-chip">🔥 {{ total_streak_days }} {{ t('total_streak_days') }}</span>
+        {% if patient.is_premium %}<span class="profile-chip">⭐ {{ t('plan_premium') }}</span>{% endif %}
       </div>
     </div>
 
@@ -49,6 +50,7 @@
       {% endif %}
     </div>
 
+    <a href="/patients/{{ patient.token }}/subscription" class="button" style="margin:0 0 10px; text-align:center; display:block;">⭐ {{ t('upgrade_link') }}</a>
     <a href="/patients/{{ patient.token }}/profile/edit" class="button" style="margin:0 0 16px; background:transparent; border:1px solid var(--border-strong); color:var(--text-primary); text-align:center; display:block;">✏️ {{ t('edit_profile') }}</a>
 
     <div class="panel-grid">

@@ -41,6 +41,12 @@ class Patient(db.Model):
     # on the nutrition page. "bulking" / "maintaining" / "cutting".
     fitness_goal = db.Column(db.String(20), nullable=True)
 
+    # No payment processor is wired up yet, so "upgrading" during this beta is a
+    # free instant unlock, not a real charge - premium_since is kept mainly so we
+    # can see adoption once billing is real.
+    is_premium = db.Column(db.Boolean, nullable=False, default=False)
+    premium_since = db.Column(db.DateTime, nullable=True)
+
     allergies = db.Column(db.Text, nullable=True)
     chronic_conditions = db.Column(db.Text, nullable=True)
     current_medications = db.Column(db.Text, nullable=True)

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Bluum — {{ t('premium_title') }}{% endblock %}
+{% block content %}
+  <div class="data-page">
+    <h1 style="margin-bottom:2px;">{{ t('premium_title') }}</h1>
+    <p class="subtitle" style="margin-top:0;">{{ t('premium_subtitle') }}</p>
+
+    {% if patient.is_premium %}
+      <div class="panel" style="border-color: var(--accent); margin-bottom:16px;">
+        <h3>⭐ {{ t('premium_active') }}</h3>
+        <p style="margin:0 0 12px;">{{ t('premium_beta_note') }}</p>
+        <form method="post" action="/patients/{{ patient.token }}/subscription/cancel">
+          <button type="submit" style="background:transparent; border:1px solid var(--border-strong); color:var(--text-secondary);">{{ t('premium_cancel') }}</button>
+        </form>
+      </div>
+    {% else %}
+      <div class="panel" style="border-color: var(--accent); margin-bottom:16px;">
+        <h3>🎁 {{ t('premium_beta_badge') }}</h3>
+        <p style="margin:0;">{{ t('premium_beta_note') }}</p>
+      </div>
+    {% endif %}
+
+    <div class="panel-grid">
+      <div class="panel">
+        <h3>{{ t('plan_free') }}</h3>
+        <p class="field-value" style="font-size:22px; font-weight:800; margin:0 0 14px;">$0</p>
+        <div class="field-row"><span class="field-value">✓ {{ t('feature_daily_coaching') }}</span></div>
+        <div class="field-row"><span class="field-value">✓ {{ t('feature_streaks') }}</span></div>
+        <div class="field-row"><span class="field-value">✓ {{ t('feature_basic_checkins') }}</span></div>
+      </div>
+
+      <div class="panel" style="border-color: var(--accent);">
+        <h3>⭐ {{ t('plan_premium') }}</h3>
+        <p class="field-value" style="font-size:22px; font-weight:800; margin:0 0 14px;">$4.99<span style="font-size:13px; font-weight:400; color:var(--text-muted);">/{{ t('per_month') }}</span></p>
+        <p class="subtitle" style="margin:0 0 14px;">{{ t('or_annual') }}</p>
+        <div class="field-row"><span class="field-value">✓ {{ t('feature_deeper_ai') }}</span></div>
+        <div class="field-row"><span class="field-value">✓ {{ t('feature_full_history') }}</span></div>
+        <div class="field-row"><span class="field-value">✓ {{ t('feature_personalized_programs') }}</span></div>
+
+        {% if not patient.is_premium %}
+          <form method="post" action="/patients/{{ patient.token }}/subscription/upgrade" style="margin-top:14px;">
+            <button type="submit">⭐ {{ t('upgrade_button') }}</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

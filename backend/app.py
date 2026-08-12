@@ -446,6 +446,31 @@ def create_app():
         db.session.commit()
         return redirect(url_for("profile_overview", token=token))
 
+    # ---------------------------------------------------------------- subscription
+    # No payment processor is wired up yet - "upgrading" during this beta is a
+    # free, instant unlock (clearly labeled as such to the patient), not a real
+    # charge. Swap in real billing here once a processor is integrated.
+
+    @app.get("/patients/<token>/subscription")
+    def subscription_page(token):
+        patient = get_patient_or_404(token)
+        return render_template("subscription.html", patient=patient)
+
+    @app.post("/patients/<token>/subscription/upgrade")
+    def subscription_upgrade(token):
+        patient = get_patient_or_404(token)
+        patient.is_premium = True
+        patient.premium_since = datetime.utcnow()
+        db.session.commit()
+        return redirect(url_for("subscription_page", token=token))
+
+    @app.post("/patients/<token>/subscription/cancel")
+    def subscription_cancel(token):
+        patient = get_patient_or_404(token)
+        patient.is_premium = False
+        db.session.commit()
+        return redirect(url_for("subscription_page", token=token))
+
     # ---------------------------------------------------------------- staff auth
 
     @app.get("/staff/register")
