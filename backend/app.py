@@ -355,6 +355,16 @@ def create_app():
             streak = habit.current_streak()
             answer_callback_query(callback_id, f"Checked in! Day {streak} 🔥")
             edit_message_text(chat_id, message_id, f"✅ <b>{habit.name}</b> — Day {streak} 🔥\nNice work.")
+        elif data == "notif:on":
+            patient.notifications_enabled = True
+            db.session.commit()
+            answer_callback_query(callback_id, "Reminders on 🔔")
+            edit_message_text(chat_id, message_id, "🔔 Reminders are on. You'll get an evening check-in nudge and a weekly recap here.")
+        elif data == "notif:off":
+            patient.notifications_enabled = False
+            db.session.commit()
+            answer_callback_query(callback_id, "Reminders off")
+            edit_message_text(chat_id, message_id, "Okay, no reminders. You can turn them back on anytime from your Profile.")
         else:
             answer_callback_query(callback_id)
 
@@ -525,6 +535,26 @@ def create_app():
         patient.is_premium = False
         db.session.commit()
         return redirect(url_for("subscription_page", token=token))
+
+    # ---------------------------------------------------------------- notification consent
+    # Opt-in only - the scheduled reminder jobs further down only ever message a
+    # patient who has explicitly turned this on themselves.
+
+    @app.post("/patients/<token>/notifications/enable")
+    def notifications_enable(token):
+        patient = get_patient_or_404(token)
+        patient.notifications_enabled = True
+        db.session.commit()
+        if patient.telegram_user_id:
+            send_message(patient.telegram_user_id, "🔔 Reminders are on. You'll get an evening check-in nudge and a weekly recap here.")
+        return redirect(request.referrer or url_for("profile_overview", token=token))
+
+    @app.post("/patients/<token>/notifications/disable")
+    def notifications_disable(token):
+        patient = get_patient_or_404(token)
+        patient.notifications_enabled = False
+        db.session.commit()
+        return redirect(request.referrer or url_for("profile_overview", token=token))
 
     # ---------------------------------------------------------------- staff auth
 
@@ -1318,7 +1348,7 @@ def create_app():
         when there's an actual streak on the line - rather than sending two
         separate notifications about the same thing."""
         with app.app_context():
-            patients = Patient.query.filter(Patient.telegram_user_id.isnot(None)).all()
+            patients = Patient.query.filter(Patient.telegram_user_id.isnot(None), Patient.notifications_enabled.is_(True)).all()
             for patient in patients:
                 habits = Habit.query.filter_by(patient_token=patient.token, active=True).all()
                 pending = [h for h in habits if not h.checked_in_today()]
@@ -1337,7 +1367,7 @@ def create_app():
 
     def send_telegram_weekly_summary():
         with app.app_context():
-            patients = Patient.query.filter(Patient.telegram_user_id.isnot(None)).all()
+            patients = Patient.query.filter(Patient.telegram_user_id.isnot(None), Patient.notifications_enabled.is_(True)).all()
             for patient in patients:
                 habits = Habit.query.filter_by(patient_token=patient.token, active=True).all()
                 sleep_streak = SleepLog.current_streak_for(patient.token)

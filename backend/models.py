@@ -33,6 +33,11 @@ class Patient(db.Model):
     telegram_user_id = db.Column(db.BigInteger, unique=True, nullable=True, index=True)
     telegram_username = db.Column(db.String(64), nullable=True)
 
+    # Opt-in, not opt-out: proactive reminder messages (see telegram_bot.py /
+    # the scheduled jobs in app.py) only ever go to patients who turned this on
+    # themselves - default is False for everyone, including existing patients.
+    notifications_enabled = db.Column(db.Boolean, nullable=False, default=False)
+
     # Filename under static/img/ for this patient's profile picture. None falls
     # back to the generic character.png mascot in templates.
     avatar_filename = db.Column(db.String(120), nullable=True)

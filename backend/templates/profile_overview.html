@@ -51,6 +51,25 @@
     </div>
 
     <a href="/patients/{{ patient.token }}/subscription" class="button" style="margin:0 0 10px; text-align:center; display:block;">⭐ {{ t('upgrade_link') }}</a>
+
+    {% if patient.telegram_user_id %}
+      <div class="panel" style="margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <div>
+          <p style="margin:0; font-weight:700;">{{ t('notifications_on') if patient.notifications_enabled else t('notifications_off') }}</p>
+          <p class="subtitle" style="margin:2px 0 0;">{{ t('notifications_desc') }}</p>
+        </div>
+        {% if patient.notifications_enabled %}
+          <form method="post" action="/patients/{{ patient.token }}/notifications/disable" style="margin:0; flex-shrink:0;">
+            <button type="submit" style="width:auto; margin:0; background:transparent; border:1px solid var(--border-strong); color:var(--text-secondary);">{{ t('turn_off') }}</button>
+          </form>
+        {% else %}
+          <form method="post" action="/patients/{{ patient.token }}/notifications/enable" style="margin:0; flex-shrink:0;">
+            <button type="submit" style="width:auto; margin:0;">{{ t('turn_on') }}</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <a href="/patients/{{ patient.token }}/profile/edit" class="button" style="margin:0 0 16px; background:transparent; border:1px solid var(--border-strong); color:var(--text-primary); text-align:center; display:block;">✏️ {{ t('edit_profile') }}</a>
 
     <div class="panel-grid">
