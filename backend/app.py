@@ -46,6 +46,7 @@ from sms import send_sms
 from symptom_model import predict_diseases
 from nutrition import analyze_food_photo, generate_calories_burned, generate_food_estimate
 from telegram_auth import verify_init_data
+from telegram_bot import answer_callback_query, edit_message_text, send_message, set_webhook
 from translations import t as translate
 from uploads import save_upload, upload_path
 
@@ -102,6 +103,14 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+
+    # Registers (or re-confirms - the call is idempotent) the Telegram webhook
+    # this app receives button-tap and message events on. Needs PUBLIC_BASE_URL
+    # set (e.g. https://bluum-production.up.railway.app) - skipped silently
+    # without it, so local dev never tries to register a real webhook.
+    public_base_url = os.environ.get("PUBLIC_BASE_URL")
+    if public_base_url and app.config.get("TELEGRAM_BOT_TOKEN"):
+        set_webhook(f"{public_base_url.rstrip('/')}/telegram/webhook")
 
     def get_patient_or_404(token):
         return Patient.query.filter_by(token=token).first_or_404()
@@ -302,6 +311,52 @@ def create_app():
 
         session["patient_token"] = patient.token
         return jsonify(redirect=url_for("patient_dashboard", token=patient.token))
+
+    # ---------------------------------------------------------------- Telegram bot webhook
+    # Handles button taps on the proactive reminder messages (see the scheduled jobs
+    # below) so a check-in happens with one tap on the notification, no Mini App
+    # load required. Registered automatically at startup via set_webhook() above.
+
+    @app.post("/telegram/webhook")
+    def telegram_webhook():
+        update = request.get_json(silent=True) or {}
+        callback = update.get("callback_query")
+        if callback:
+            _handle_telegram_callback(callback)
+        # Telegram only cares that this returns 200 - it doesn't read the body.
+        return jsonify(ok=True)
+
+    def _handle_telegram_callback(callback):
+        callback_id = callback.get("id", "")
+        data = callback.get("data", "")
+        telegram_user_id = callback.get("from", {}).get("id")
+        message = callback.get("message") or {}
+        chat_id = message.get("chat", {}).get("id")
+        message_id = message.get("message_id")
+
+        if not (data and telegram_user_id and chat_id and message_id):
+            answer_callback_query(callback_id)
+            return
+
+        patient = Patient.query.filter_by(telegram_user_id=telegram_user_id).first()
+        if not patient:
+            answer_callback_query(callback_id, "Account not found — open Bluum once first.")
+            return
+
+        if data.startswith("hc:") and data[3:].isdigit():
+            habit_id = int(data[3:])
+            habit = Habit.query.filter_by(id=habit_id, patient_token=patient.token, active=True).first()
+            if not habit:
+                answer_callback_query(callback_id, "That habit isn't active anymore.")
+                return
+            if not habit.checked_in_today():
+                db.session.add(HabitCheckIn(habit_id=habit.id))
+                db.session.commit()
+            streak = habit.current_streak()
+            answer_callback_query(callback_id, f"Checked in! Day {streak} 🔥")
+            edit_message_text(chat_id, message_id, f"✅ <b>{habit.name}</b> — Day {streak} 🔥\nNice work.")
+        else:
+            answer_callback_query(callback_id)
 
     @app.get("/patients/<token>/qr")
     def show_qr(token):
@@ -1257,12 +1312,54 @@ def create_app():
                 summary.follow_up_sms_sent = True
             db.session.commit()
 
+    def send_telegram_habit_reminders():
+        """Evening nudge for anyone with an active habit not yet checked in today.
+        Doubles as the streak-risk warning - same message, just phrased harder
+        when there's an actual streak on the line - rather than sending two
+        separate notifications about the same thing."""
+        with app.app_context():
+            patients = Patient.query.filter(Patient.telegram_user_id.isnot(None)).all()
+            for patient in patients:
+                habits = Habit.query.filter_by(patient_token=patient.token, active=True).all()
+                pending = [h for h in habits if not h.checked_in_today()]
+                if not pending:
+                    continue
+                lines = ["<b>Evening check-in</b>"]
+                buttons = []
+                for h in pending:
+                    streak = h.current_streak()
+                    if streak > 0:
+                        lines.append(f"🔥 <b>{h.name}</b> — your {streak}-day streak is on the line tonight")
+                    else:
+                        lines.append(f"• <b>{h.name}</b> — don't forget today")
+                    buttons.append([(f"✅ {h.name}", f"hc:{h.id}")])
+                send_message(patient.telegram_user_id, "\n".join(lines), buttons)
+
+    def send_telegram_weekly_summary():
+        with app.app_context():
+            patients = Patient.query.filter(Patient.telegram_user_id.isnot(None)).all()
+            for patient in patients:
+                habits = Habit.query.filter_by(patient_token=patient.token, active=True).all()
+                sleep_streak = SleepLog.current_streak_for(patient.token)
+                if not habits and not sleep_streak:
+                    continue
+                lines = ["📊 <b>Your week on Bluum</b>"]
+                for h in habits:
+                    lines.append(f"🔥 {h.name}: {h.current_streak()}-day streak")
+                if sleep_streak:
+                    lines.append(f"🌙 Sleep: {sleep_streak}-day streak")
+                send_message(patient.telegram_user_id, "\n".join(lines))
+
     # Guard against Flask's debug reloader starting two scheduler instances:
     # with the reloader, only the forked child process has WERKZEUG_RUN_MAIN set.
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         scheduler = BackgroundScheduler()
         scheduler.add_job(send_medication_reminders, "interval", minutes=1, id="medication_reminders")
         scheduler.add_job(send_follow_up_reminders, "interval", hours=1, id="follow_up_reminders")
+        # Times are UTC. 14:00 UTC = 19:00 in Tashkent (UTC+5) - an evening nudge,
+        # and a Sunday-evening weekly recap.
+        scheduler.add_job(send_telegram_habit_reminders, "cron", hour=14, minute=0, id="telegram_habit_reminders")
+        scheduler.add_job(send_telegram_weekly_summary, "cron", day_of_week="sun", hour=14, minute=30, id="telegram_weekly_summary")
         scheduler.start()
 
     return app
