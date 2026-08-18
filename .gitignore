@@ -5,3 +5,16 @@ backend/uploads/
 backend/.env
 *.pyc
 .DS_Store
+
+# Local dev tooling config - not part of the app.
+.claude/
+
+# Working/reference material kept locally, not part of the shipped product.
+reference_pics/
+MedPass_BP.1 copy.pdf
+uz_la_wtnd_2015_gloss.pdf
+
+# Legacy deploy configs superseded by backend/Procfile (Railway) - kept
+# locally for reference only, not part of the current deployment.
+deploy/
+render.yaml
