@@ -43,13 +43,9 @@ completely out of reach for most people in the region.
 
 ## Screenshots
 
-*(Add 2–4 screenshots here — phone screenshots of the Home dashboard, Ask Bluum chat, and
-Profile/streaks screen work great. Drop the images into `docs/screenshots/` and reference them
-below, e.g. `![Home dashboard](docs/screenshots/home.png)`.)*
-
 | Home dashboard | Ask Bluum | Profile & streaks |
 |---|---|---|
-| _add screenshot_ | _add screenshot_ | _add screenshot_ |
+| ![Home dashboard](docs/screenshots/home.png) | ![Ask Bluum](docs/screenshots/ask-bluum.png) | ![Profile & streaks](docs/screenshots/profile.png) |
 
 ---
 
