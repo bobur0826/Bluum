@@ -1309,20 +1309,37 @@ def create_app():
 
     # ---------------------------------------------------------------- background jobs
 
+    # Must match the interval this job is scheduled at, below - the job checks
+    # "did any scheduled time fall in the last REMINDER_WINDOW_MINUTES", not an
+    # exact-minute match, so a slot never gets skipped just because the job
+    # itself runs less often than once a minute.
+    REMINDER_WINDOW_MINUTES = 5
+
     def send_medication_reminders():
         with app.app_context():
             now = datetime.now()
-            current_hhmm = now.strftime("%H:%M")
+            now_minutes = now.hour * 60 + now.minute
             meds = Medication.query.filter_by(active=True).all()
             for med in meds:
                 if not med.schedule_times:
                     continue
-                times = [t.strip() for t in med.schedule_times.split(",")]
-                if current_hhmm not in times:
+                due_slot_minutes = None
+                for raw in med.schedule_times.split(","):
+                    try:
+                        h, m = (int(x) for x in raw.strip().split(":"))
+                    except ValueError:
+                        continue
+                    slot_minutes = h * 60 + m
+                    if 0 <= now_minutes - slot_minutes < REMINDER_WINDOW_MINUTES:
+                        due_slot_minutes = slot_minutes
+                        break
+                if due_slot_minutes is None:
                     continue
-                # avoid re-sending within the same minute if the job runs more than once
-                if med.last_reminder_sent and med.last_reminder_sent.strftime("%Y-%m-%d %H:%M") == now.strftime("%Y-%m-%d %H:%M"):
-                    continue
+                # Skip if we already caught this same slot on an earlier run today.
+                if med.last_reminder_sent and med.last_reminder_sent.date() == now.date():
+                    sent_minutes = med.last_reminder_sent.hour * 60 + med.last_reminder_sent.minute
+                    if 0 <= sent_minutes - due_slot_minutes < REMINDER_WINDOW_MINUTES:
+                        continue
                 patient = Patient.query.filter_by(token=med.patient_token).first()
                 if not patient or not patient.phone:
                     continue
@@ -1384,7 +1401,13 @@ def create_app():
     # with the reloader, only the forked child process has WERKZEUG_RUN_MAIN set.
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         scheduler = BackgroundScheduler()
-        scheduler.add_job(send_medication_reminders, "interval", minutes=1, id="medication_reminders")
+        # Every REMINDER_WINDOW_MINUTES, not every 1 - this job queries every active
+        # medication in the DB on every run, on a thread inside the same process
+        # serving web requests. A patient can still get a reminder up to that many
+        # minutes after their scheduled time (see the window check above), which is
+        # an acceptable trade for not competing with real requests for DB
+        # connections/CPU twelve times as often.
+        scheduler.add_job(send_medication_reminders, "interval", minutes=REMINDER_WINDOW_MINUTES, id="medication_reminders")
         scheduler.add_job(send_follow_up_reminders, "interval", hours=1, id="follow_up_reminders")
         # Times are UTC. 14:00 UTC = 19:00 in Tashkent (UTC+5) - an evening nudge,
         # and a Sunday-evening weekly recap.
