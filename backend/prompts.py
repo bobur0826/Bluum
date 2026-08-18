@@ -173,6 +173,159 @@ Respond with ONLY valid JSON, no markdown fences:
 appointment. This is guidance, not a diagnosis - never definitively diagnose."""
 
 
+# Lets "Ask Bluum" actually perform an in-app action instead of just talking
+# about it - e.g. "log 2 cups of water" or "mark my running habit done
+# today" gets executed for real, not just acknowledged in text. Each tool
+# name below must have a matching case in _execute_chat_action() in app.py.
+ACTION_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "checkin_habit",
+            "description": "Mark one of the patient's existing active habits as done for today.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "habit_name": {
+                        "type": "string",
+                        "description": "The exact name of an existing active habit, from the list given in context. Never invent a habit name that isn't in that list.",
+                    },
+                },
+                "required": ["habit_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_habit",
+            "description": "Create a new habit for the patient to start tracking.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Short name for the new habit, e.g. 'Quit smoking' or 'Reading'."},
+                    "kind": {
+                        "type": "string",
+                        "enum": ["smoking", "alcohol", "running", "swimming", "tennis", "morning_walk", "sleeping_schedule", "custom"],
+                        "description": "Closest matching category, or 'custom' if none fit.",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_water",
+            "description": "Log today's water intake in cups (overwrites any earlier value logged today).",
+            "parameters": {
+                "type": "object",
+                "properties": {"cups": {"type": "integer", "description": "Total cups of water for today."}},
+                "required": ["cups"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_steps",
+            "description": "Log today's step count (overwrites any earlier value logged today).",
+            "parameters": {
+                "type": "object",
+                "properties": {"steps": {"type": "integer", "description": "Total steps for today."}},
+                "required": ["steps"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_active_minutes",
+            "description": "Log today's active minutes (overwrites any earlier value logged today).",
+            "parameters": {
+                "type": "object",
+                "properties": {"minutes": {"type": "integer", "description": "Total active minutes for today."}},
+                "required": ["minutes"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_sleep",
+            "description": "Log last night's sleep and wake time.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sleep_time": {"type": "string", "description": "24h time patient went to sleep, as HH:MM."},
+                    "wake_time": {"type": "string", "description": "24h time patient woke up, as HH:MM."},
+                },
+                "required": ["sleep_time", "wake_time"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_food",
+            "description": "Log a meal from a spoken/typed description, estimating calories and macros for it.",
+            "parameters": {
+                "type": "object",
+                "properties": {"description": {"type": "string", "description": "What the patient ate, as they described it."}},
+                "required": ["description"],
+            },
+        },
+    },
+]
+
+ACTION_SYSTEM_PROMPT = """You are Bluum, a health assistant for a patient in Uzbekistan, and you can \
+directly perform actions in their app when they ask you to - not just talk about it.
+
+The patient's current active habits (use these EXACT names for checkin_habit - never invent one): \
+{habit_names}
+
+If the patient's message is clearly asking you to do one of the available actions (check in a \
+habit, log water/steps/active minutes/sleep, log a meal they ate, or start tracking a new habit), \
+call exactly ONE matching function with the right arguments. \
+If it's just a question, a symptom description, general conversation, or anything that isn't a \
+clear request to perform one of those specific actions, do NOT call any function."""
+
+
+def generate_chat_action(message: str, history: list, habit_names: list) -> dict | None:
+    """Returns {"action": tool_name, "params": {...}} if the message is a
+    clear request to perform an in-app action Bluum can execute, else None -
+    callers should fall back to the normal conversational generate_chat_reply()
+    when this returns None."""
+    history_text = "\n".join(f"{h['role']}: {h['text']}" for h in history[-8:]) or "(none yet)"
+    try:
+        response = _client().chat.completions.create(
+            model=MODEL,
+            max_tokens=300,
+            tools=ACTION_TOOLS,
+            tool_choice="auto",
+            messages=[
+                {"role": "system", "content": ACTION_SYSTEM_PROMPT.format(
+                    habit_names=", ".join(habit_names) if habit_names else "(none yet)"
+                )},
+                {"role": "user", "content": f"Conversation so far:\n{history_text}\n\nNew message: \"{message}\""},
+            ],
+        )
+    except Exception:
+        # An action failing to detect is not a hard error - just fall back
+        # to the normal conversational reply instead of a 502.
+        return None
+
+    tool_calls = response.choices[0].message.tool_calls
+    if not tool_calls:
+        return None
+    call = tool_calls[0]
+    try:
+        return {"action": call.function.name, "params": json.loads(call.function.arguments)}
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
 def generate_chat_reply(message: str, history: list, context: dict) -> dict:
     history_text = "\n".join(f"{h['role']}: {h['text']}" for h in history[-8:]) or "(none yet)"
     prompt = CHAT_PROMPT.format(

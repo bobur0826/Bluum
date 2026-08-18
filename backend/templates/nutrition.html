@@ -52,6 +52,9 @@
     <form method="post" action="/patients/{{ patient.token }}/nutrition/log" enctype="multipart/form-data">
       <label>{{ t('photo_of_meal') }}</label>
       <input type="file" name="photo" accept="image/*" capture="environment">
+      <p class="subtitle" style="margin:10px 0 4px; font-size:12px;">{{ t('or_describe_meal') }}</p>
+      <label>{{ t('describe_meal_label') }}</label>
+      <textarea name="description" rows="2" placeholder="{{ t('describe_meal_placeholder') }}"></textarea>
       <button type="submit" style="margin-top:12px;">{{ t('estimate_and_log') }}</button>
     </form>
     <p class="subtitle" style="margin:10px 0 0; font-size:12px;">{{ t('nutrition_disclaimer') }}</p>

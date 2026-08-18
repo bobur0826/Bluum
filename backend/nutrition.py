@@ -1,12 +1,15 @@
 """Food-photo calorie/macro estimation and daily-burn figures.
 
 analyze_food_photo() does a real GPT-4o vision call on the actual photo.
-generate_food_estimate() is the fallback used only when that's unavailable
-(no API key, request failure, unparseable response) or when there's no
-photo at all - it's a deterministic placeholder, not a guess at real
-content, which is why it landed on "Beef burger with fries" for a yogurt
-photo before this. generate_calories_burned() is still fully simulated -
-there's no wearable/sensor integration to pull a real burn figure from.
+analyze_food_text() does the same estimate from a plain-text description
+instead, for when someone forgot to take a photo and just wants to type
+what they ate. generate_food_estimate() is the fallback used only when
+neither of those is available (no API key, request failure, unparseable
+response) or when there's no photo/description at all - it's a
+deterministic placeholder, not a guess at real content, which is why it
+landed on "Beef burger with fries" for a yogurt photo before this.
+generate_calories_burned() is still fully simulated - there's no
+wearable/sensor integration to pull a real burn figure from.
 """
 
 import base64
@@ -64,6 +67,48 @@ def analyze_food_photo(image_bytes: bytes) -> dict | None:
     except Exception:
         # Network hiccup, bad JSON, missing key in the response, whatever -
         # this feature degrading to the simulated fallback beats a 500.
+        return None
+
+
+TEXT_PROMPT = """You are estimating nutrition facts from a short text description of a meal, for a \
+health app. The person forgot to take a photo and typed what they ate instead.
+
+Description: "{description}"
+
+Respond with ONLY valid JSON, no markdown fences, in exactly this shape:
+{{"description": "short clean name of the dish, 2-5 words", "calories": <int>, "protein_g": <int>, \
+"fat_g": <int>, "carbs_g": <int>}}
+
+Make a reasonable real-world estimate for a typical portion, even if the description is vague or \
+casual (e.g. "a couple eggs and toast", "big bowl of plov"). If the text doesn't describe food at \
+all, still respond in the same JSON shape, using it as the description and 0 for all numeric fields."""
+
+
+def analyze_food_text(description: str) -> dict | None:
+    """Same contract as analyze_food_photo() but from a typed description
+    instead of an image - returns a real {description, calories, protein_g,
+    fat_g, carbs_g} estimate, or None if unavailable right now (missing API
+    key, request failure, bad response), so callers fall back to
+    generate_food_estimate() rather than fail the log."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key or not description.strip():
+        return None
+    try:
+        response = OpenAI(api_key=api_key).chat.completions.create(
+            model=MODEL,
+            max_tokens=200,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": TEXT_PROMPT.format(description=description.strip())}],
+        )
+        data = json.loads(response.choices[0].message.content.strip())
+        return {
+            "description": str(data["description"])[:160],
+            "calories": max(0, int(data["calories"])),
+            "protein_g": max(0, int(data["protein_g"])),
+            "fat_g": max(0, int(data["fat_g"])),
+            "carbs_g": max(0, int(data["carbs_g"])),
+        }
+    except Exception:
         return None
 
 # (description, calories, protein_g, fat_g, carbs_g) - a believable spread

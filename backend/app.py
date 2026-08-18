@@ -15,6 +15,7 @@ load_dotenv()
 from prompts import (
     SummaryGenerationError,
     check_medication_interactions,
+    generate_chat_action,
     generate_prep_questions,
     generate_summary,
     generate_chat_reply,
@@ -44,7 +45,7 @@ from models import (
 from share_card import generate_streak_card
 from sms import send_sms
 from symptom_model import predict_diseases
-from nutrition import analyze_food_photo, generate_calories_burned, generate_food_estimate
+from nutrition import analyze_food_photo, analyze_food_text, generate_calories_burned, generate_food_estimate
 from telegram_auth import verify_init_data
 from telegram_bot import answer_callback_query, edit_message_text, send_message, set_webhook
 from translations import t as translate
@@ -927,10 +928,13 @@ def create_app():
             db.session.commit()
         return redirect(url_for("nutrition_page", token=token))
 
-    @app.post("/patients/<token>/nutrition/log")
-    def add_food_log(token):
-        get_patient_or_404(token)
-        photo = request.files.get("photo")
+    def _log_food_entry(token, photo=None, description_text=None):
+        """Shared by the nutrition page's upload form and Ask Bluum's "log
+        food" action - estimates a meal from a photo if given, else from a
+        typed description, else falls back to a plausible generated
+        placeholder rather than a blank log or a hard error. Returns the
+        created FoodLog (not yet committed by this function's caller need
+        not commit again - it does so itself)."""
         stored_filename = None
         estimate = None
         if photo and photo.filename:
@@ -938,13 +942,14 @@ def create_app():
             photo.seek(0)
             estimate = analyze_food_photo(image_bytes)
             stored_filename, _original = save_upload(photo, token)
+        elif description_text and description_text.strip():
+            estimate = analyze_food_text(description_text)
         if estimate is None:
-            # No photo, or the real vision call wasn't available/failed -
-            # fall back to a plausible generated placeholder rather than a
-            # blank log or a hard error.
-            seed = stored_filename or f"{token}:{datetime.utcnow().isoformat()}"
+            # Nothing usable came from a real AI estimate above - fall back
+            # to a plausible generated placeholder.
+            seed = stored_filename or description_text or f"{token}:{datetime.utcnow().isoformat()}"
             estimate = generate_food_estimate(seed)
-        db.session.add(FoodLog(
+        entry = FoodLog(
             patient_token=token,
             description=estimate["description"],
             photo_filename=stored_filename,
@@ -952,8 +957,19 @@ def create_app():
             protein_g=estimate["protein_g"],
             fat_g=estimate["fat_g"],
             carbs_g=estimate["carbs_g"],
-        ))
+        )
+        db.session.add(entry)
         db.session.commit()
+        return entry
+
+    @app.post("/patients/<token>/nutrition/log")
+    def add_food_log(token):
+        get_patient_or_404(token)
+        _log_food_entry(
+            token,
+            photo=request.files.get("photo"),
+            description_text=request.form.get("description"),
+        )
         return redirect(url_for("nutrition_page", token=token))
 
     @app.post("/patients/<token>/nutrition/log/<int:log_id>/delete")
@@ -1094,6 +1110,113 @@ def create_app():
             "recent_results": results_text,
         }
 
+    def _execute_chat_action(token, action):
+        """Executes an action generate_chat_action() decided the message was
+        asking for, against the real DB - checking in a habit, logging
+        water/steps/active-minutes/sleep, logging a meal, or starting a new
+        habit. Returns a trilingual {en, uz, ru} confirmation, or None if the
+        action couldn't actually be carried out (e.g. the named habit
+        doesn't exist), so the caller falls back to a normal chat reply
+        instead of confirming something that didn't happen."""
+        name, params = action["action"], action.get("params", {})
+
+        if name == "checkin_habit":
+            target = (params.get("habit_name") or "").strip().lower()
+            habit = next(
+                (h for h in Habit.query.filter_by(patient_token=token, active=True).all()
+                 if h.name.strip().lower() == target),
+                None,
+            )
+            if not habit:
+                return None
+            if not habit.checked_in_today():
+                db.session.add(HabitCheckIn(habit_id=habit.id))
+                db.session.commit()
+            streak = habit.current_streak()
+            return {
+                "en": f'✅ Checked in "{habit.name}" — day {streak} of your streak!',
+                "uz": f'✅ "{habit.name}" belgilandi — {streak}-kunlik ketma-ketligingiz!',
+                "ru": f'✅ Отмечено «{habit.name}» — день {streak} вашей серии!',
+            }
+
+        if name == "add_habit":
+            habit_name = (params.get("name") or "").strip()
+            if not habit_name:
+                return None
+            db.session.add(Habit(patient_token=token, name=habit_name, kind=params.get("kind") or "custom"))
+            db.session.commit()
+            return {
+                "en": f'🎯 Started tracking a new habit: "{habit_name}".',
+                "uz": f'🎯 Yangi odat kuzatilishi boshlandi: "{habit_name}".',
+                "ru": f'🎯 Начато отслеживание новой привычки: «{habit_name}».',
+            }
+
+        if name in ("log_water", "log_steps", "log_active_minutes"):
+            field, param_key, emoji, units = {
+                "log_water": ("water_cups", "cups", "💧", ("cups", "stakan", "стаканов")),
+                "log_steps": ("steps", "steps", "👟", ("steps", "qadam", "шагов")),
+                "log_active_minutes": ("active_minutes", "minutes", "⏱", ("active minutes", "faol daqiqa", "активных минут")),
+            }[name]
+            raw = params.get(param_key)
+            if raw is None:
+                return None
+            try:
+                value = max(0, int(raw))
+            except (TypeError, ValueError):
+                return None
+            today_log = DailyLog.today_for(token)
+            if not today_log:
+                today_log = DailyLog(patient_token=token)
+                db.session.add(today_log)
+            setattr(today_log, field, value)
+            db.session.commit()
+            unit_en, unit_uz, unit_ru = units
+            return {
+                "en": f"{emoji} Logged {value} {unit_en} for today.",
+                "uz": f"{emoji} Bugun uchun {value} {unit_uz} qayd etildi.",
+                "ru": f"{emoji} Записано {value} {unit_ru} за сегодня.",
+            }
+
+        if name == "log_sleep":
+            sleep_time, wake_time = params.get("sleep_time"), params.get("wake_time")
+            if not sleep_time or not wake_time:
+                return None
+            hours = None
+            try:
+                s_h, s_m = (int(x) for x in sleep_time.split(":"))
+                w_h, w_m = (int(x) for x in wake_time.split(":"))
+                mins = (w_h * 60 + w_m) - (s_h * 60 + s_m)
+                if mins <= 0:
+                    mins += 24 * 60
+                hours = round(mins / 60, 1)
+            except ValueError:
+                pass
+            existing = SleepLog.query.filter_by(patient_token=token, log_date=date.today()).first()
+            if existing:
+                existing.sleep_time, existing.wake_time, existing.hours = sleep_time, wake_time, hours
+            else:
+                db.session.add(SleepLog(patient_token=token, sleep_time=sleep_time, wake_time=wake_time, hours=hours))
+            db.session.commit()
+            suffix = f" ({hours}h)" if hours else ""
+            return {
+                "en": f"🌙 Logged sleep: {sleep_time} → {wake_time}{suffix}.",
+                "uz": f"🌙 Uyqu qayd etildi: {sleep_time} → {wake_time}{suffix}.",
+                "ru": f"🌙 Записан сон: {sleep_time} → {wake_time}{suffix}.",
+            }
+
+        if name == "log_food":
+            description = (params.get("description") or "").strip()
+            if not description:
+                return None
+            entry = _log_food_entry(token, description_text=description)
+            return {
+                "en": f'🍽️ Logged "{entry.description}" — {entry.calories} kcal.',
+                "uz": f'🍽️ "{entry.description}" qayd etildi — {entry.calories} kkal.',
+                "ru": f'🍽️ Записано «{entry.description}» — {entry.calories} ккал.',
+            }
+
+        return None
+
     @app.post("/patients/<token>/symptom-checker")
     def symptom_checker_submit(token):
         patient = get_patient_or_404(token)
@@ -1108,6 +1231,24 @@ def create_app():
             for m in chat
         ]
         chat.append({"role": "user", "text": symptoms})
+
+        # Give Ask Bluum a chance to actually perform an action (check in a
+        # habit, log water/steps/sleep/a meal, start a new habit) before
+        # falling back to a normal conversational reply below.
+        active_habit_names = [h.name for h in Habit.query.filter_by(patient_token=token, active=True).all()]
+        detected_action = generate_chat_action(symptoms, history, active_habit_names)
+        if detected_action:
+            confirmation = _execute_chat_action(token, detected_action)
+            if confirmation:
+                bot_msg = {
+                    "role": "bot", "is_symptom_report": False, "urgency": None, "specialist": None,
+                    "explanation_uz": confirmation["uz"], "explanation_ru": confirmation["ru"],
+                    "explanation_en": confirmation["en"], "predictions": [],
+                }
+                chat.append(bot_msg)
+                session[_chat_key(token)] = chat
+                return jsonify(bot_msg)
+
         try:
             result = generate_chat_reply(symptoms, history, build_chat_context(patient, token))
             predictions = predict_diseases(symptoms) if result["is_symptom_report"] else []
